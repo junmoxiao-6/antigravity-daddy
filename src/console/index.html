@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Antigravity Daddy · 独立控制台</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --border:#e6e8ec; --border-2:#eef0f3;
+  --text:#1f2329; --muted:#6b7280; --subtle:#98a0aa;
+  --ok:#3ecf8e; --warn:#f0a13c; --err:#e5484d;
+  --ok-bg:#e9faf1; --warn-bg:#fff5e8; --err-bg:#fdecec;
+  --accent:#3b6cf6; --accent-bg:#eef3ff;
+  --radius:12px; --radius-sm:8px;
+  --mono:"Cascadia Code","Consolas","SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  font-size:13px;color:var(--text);background:var(--bg);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.hidden{display:none !important;}
+#app{display:flex;flex-direction:column;height:100vh;min-width:900px;}
+
+/* ---------- 顶部品牌栏 ---------- */
+.topbar{display:flex;align-items:center;justify-content:space-between;height:56px;flex:none;background:#fff;border-bottom:1px solid var(--border);padding:0 20px;}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand-mark{display:block;}
+.brand-title{font-size:15.5px;font-weight:700;letter-spacing:-.2px;}
+.brand-sub{font-size:11px;color:var(--subtle);}
+.top-right{display:flex;align-items:center;gap:14px;}
+.ver{font-family:var(--mono);font-size:12px;color:var(--muted);background:#f0f2f5;padding:3px 8px;border-radius:6px;}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--subtle);flex:none;}
+.dot-ok{background:var(--ok);box-shadow:0 0 0 3px rgba(62,207,142,.16);}
+.dot-warn{background:var(--warn);box-shadow:0 0 0 3px rgba(240,161,60,.16);}
+.dot-err{background:var(--err);box-shadow:0 0 0 3px rgba(229,72,77,.16);}
+
+/* ---------- 布局 ---------- */
+.layout{display:flex;flex:1;min-height:0;}
+.sidebar{flex:none;width:170px;background:#fff;border-right:1px solid var(--border);padding:14px 10px;overflow-y:auto;}
+.tab{display:flex;align-items:center;gap:10px;width:100%;border:none;background:transparent;color:var(--muted);font:inherit;font-size:13px;padding:9px 11px;border-radius:var(--radius-sm);cursor:pointer;text-align:left;margin-bottom:3px;position:relative;}
+.tab svg{width:17px;height:17px;flex:none;}
+.tab:hover{background:#f5f7fa;color:var(--text);}
+.tab.active{background:var(--accent-bg);color:var(--accent);font-weight:600;}
+.tab.active::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--accent);}
+.content{flex:1;min-width:0;overflow-y:auto;padding:20px 24px 44px;}
+.page{display:none;}
+.page.active{display:block;}
+.page-head{margin-bottom:16px;}
+.page-head h1{font-size:18px;margin:0 0 3px;font-weight:650;}
+.page-desc{color:var(--muted);font-size:12.5px;margin:0;}
+
+/* ---------- 通用元件 ---------- */
+.btn{appearance:none;border:1px solid var(--border);background:#fff;color:var(--text);font:inherit;font-size:12.5px;padding:7px 13px;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:#c8cdd4;background:#fafbfc;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover{background:#2f5ce0;border-color:#2f5ce0;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-active{background:var(--accent-bg);border-color:#b9cdff;color:var(--accent);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.input,.select{font:inherit;font-size:12.5px;color:var(--text);background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;outline:none;min-width:0;}
+.input:focus,.select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,108,246,.12);}
+.input::placeholder{color:var(--subtle);}
+.mono{font-family:var(--mono);}
+.muted{color:var(--muted);}
+.small{font-size:11.5px;}
+.mt{margin-top:14px;}
+.mt-sm{margin-top:10px;}
+.mb{margin-bottom:10px;}
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;}
+.toolbar-spacer{flex:1;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.card-title{font-size:14px;font-weight:650;margin-bottom:10px;}
+.section-title{font-size:13px;font-weight:650;color:var(--text);margin:4px 0 10px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--border-2);font-size:12.5px;}
+.kv:last-child{border-bottom:none;}
+.kv-k{color:var(--muted);flex:none;}
+.kv-v{text-align:right;word-break:break-all;}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;line-height:1.5;}
+.badge-ok{background:var(--ok-bg);color:#1f8a5b;}
+.badge-warn{background:var(--warn-bg);color:#a5691b;}
+.badge-err{background:var(--err-bg);color:#b53035;}
+.badge-muted{background:#f0f2f5;color:var(--muted);}
+.empty{text-align:center;padding:34px 16px;color:var(--muted);}
+.empty-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px;}
+.empty-desc{font-size:12px;}
+.loading{color:var(--subtle);font-size:12.5px;padding:16px 4px;}
+.box-title{font-weight:600;margin-bottom:6px;}
+.err-line{font-family:var(--mono);font-size:11.5px;color:#a5262a;padding:2px 0;word-break:break-all;}
+.hint{color:var(--subtle);font-size:11.5px;margin-top:8px;line-height:1.6;}
+
+/* ---------- 提示条 / toast ---------- */
+.banner{border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:14px;font-size:12.5px;position:relative;padding-left:34px;}
+.banner::before{content:"";position:absolute;left:14px;top:15px;width:8px;height:8px;border-radius:50%;}
+.banner-error{background:var(--err-bg);border:1px solid #f6c9ca;color:#a5262a;}
+.banner-error::before{background:var(--err);}
+.banner-warn{background:var(--warn-bg);border:1px solid #f7dcb4;color:#8a5a12;}
+.banner-warn::before{background:var(--warn);}
+#core-error{margin:0;border-radius:0;border-left:none;border-right:none;border-top:none;}
+.warn-title{font-weight:600;margin-bottom:2px;}
+.warn-detail{color:#96631a;}
+.warn-errs{margin-top:6px;font-family:var(--mono);font-size:11.5px;word-break:break-all;}
+.toast{position:fixed;right:20px;bottom:20px;z-index:50;max-width:380px;background:#2b313a;color:#fff;padding:10px 14px;border-radius:var(--radius-sm);box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:12.5px;word-break:break-all;}
+.toast-ok{background:#1f7a54;}
+.toast-warn{background:#a5691b;}
+.toast-err{background:#b52f34;}
+
+/* ---------- 指标 / 进度条 ---------- */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;}
+.metric-label{color:var(--muted);font-size:12px;margin-bottom:8px;}
+.metric-value{font-size:22px;font-weight:650;line-height:1.2;letter-spacing:-.3px;}
+.metric-sub{color:var(--subtle);font-size:11.5px;margin-top:6px;}
+.tone-ok{color:#1f9e68;}
+.tone-warn{color:#c07a1c;}
+.tone-err{color:#c83237;}
+.tone-muted{color:var(--subtle);}
+.bar{position:relative;height:8px;border-radius:6px;background:var(--border-2);overflow:hidden;}
+.bar-fill{height:100%;border-radius:6px;transition:width .3s;}
+.bar-ok{background:linear-gradient(90deg,#3ecf8e,#2fb87a);}
+.bar-warn{background:linear-gradient(90deg,#f0a13c,#e08a24);}
+.bar-err{background:linear-gradient(90deg,#e5484d,#cf2f34);}
+.bar-unknown{background:repeating-linear-gradient(45deg,#eceff3,#eceff3 6px,#dfe3e9 6px,#dfe3e9 12px);}
+
+/* ---------- 配额 ---------- */
+.quota-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.bucket{margin-top:12px;}
+.bucket-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;gap:8px;}
+.bucket-name{color:var(--text);}
+.bucket-val{font-weight:600;font-family:var(--mono);flex:none;}
+.bucket-sub{color:var(--subtle);font-size:11.5px;margin-top:5px;}
+
+/* ---------- 账号 ---------- */
+.acc-grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.acc-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.acc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.acc-email{font-weight:600;font-size:13px;word-break:break-all;}
+.acc-label{color:var(--muted);font-size:12px;margin-bottom:8px;}
+.acc-grid .kv{border-bottom:none;padding:3px 0;justify-content:flex-start;gap:8px;}
+.acc-grid .kv-k{min-width:76px;}
+.acc-grid .kv-v{text-align:left;}
+
+/* ---------- 模型 ---------- */
+.model-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:14px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--border-2);}
+.model-row:last-child{border-bottom:none;}
+.model-name{font-weight:600;font-size:12.5px;}
+.model-id{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-all;margin-top:3px;}
+.model-sub{color:var(--subtle);font-size:11.5px;margin-top:5px;}
+.model-right{justify-self:end;}
+
+/* ---------- 表单 / 增强 ---------- */
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.field-label{color:var(--muted);font-size:12px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-row{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);}
+.enh-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.switch{position:relative;display:inline-flex;width:38px;height:22px;flex:none;align-items:center;cursor:pointer;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.slider{position:absolute;inset:0;background:#d4d8de;border-radius:22px;transition:background .18s;}
+.slider::before{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .18s;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+.switch input:checked + .slider{background:var(--ok);}
+.switch input:checked + .slider::before{transform:translateX(16px);}
+.switch input:disabled + .slider{opacity:.5;cursor:not-allowed;}
+
+/* ---------- 中转站 ---------- */
+.placeholder-box{background:linear-gradient(135deg,#fff8ec,#fff);border:1px solid #f3d9a6;border-radius:var(--radius);padding:16px 18px;}
+.placeholder-title{font-size:15px;font-weight:700;color:#a5691b;margin-bottom:6px;}
+.placeholder-desc{font-size:12.5px;color:#96631a;line-height:1.7;}
+.table{width:100%;border-collapse:collapse;font-size:12px;}
+.table th,.table td{border-bottom:1px solid var(--border-2);padding:8px 10px;text-align:left;vertical-align:top;}
+.table th{color:var(--muted);font-weight:600;background:#fafbfc;}
+.pending{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.pending-item{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 12px;background:#fafbfc;}
+.pending-item.disabled{opacity:.65;}
+.pending-label{font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:8px;}
+.pending-desc{color:var(--muted);font-size:11.5px;margin-top:3px;}
+.tag{font-size:10.5px;font-weight:600;color:#a5691b;background:var(--warn-bg);border:1px solid #f3d9a6;padding:1px 7px;border-radius:20px;}
+.probe-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+
+/* ---------- 日志 ---------- */
+.log-pre{font-family:var(--mono);font-size:12px;line-height:1.55;white-space:pre;overflow:auto;max-height:calc(100vh - 250px);background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin:0;color:#2b313a;}
+
+/* ---------- 关于 ---------- */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.about-hero{display:flex;align-items:center;gap:12px;}
+.about-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#4b7bec,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-.5px;flex:none;}
+.about-name{font-size:16px;font-weight:700;}
+.tech-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border-2);}
+.tech-item:last-child{border-bottom:none;}
+.tech-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);margin-top:6px;flex:none;}
+.tech-item b{font-size:12.5px;}
+.path-box{background:#f7f8fa;border:1px solid var(--border-2);border-radius:var(--radius-sm);padding:9px 11px;word-break:break-all;font-size:12px;}
+
+@media (max-width:1100px){
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .enh-grid,.about-grid{grid-template-columns:1fr;}
+  .quota-layout{grid-template-columns:minmax(0,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+  .pending{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 24" width="42" height="22" aria-hidden="true">
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#4b7bec"/>
+            <stop offset="1" stop-color="#8b5cf6"/>
+          </linearGradient>
+        </defs>
+        <path d="M24 12 C 19 5 14 4 10 4 C 4.5 4 2 7.6 2 12 C 2 16.4 4.5 20 10 20 C 14 20 19 19 24 12 C 29 5 34 4 38 4 C 43.5 4 46 7.6 46 12 C 46 16.4 43.5 20 38 20 C 34 20 29 19 24 12 Z" fill="none" stroke="url(#brandGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="brand-title">Antigravity Daddy</div>
+        <div class="brand-sub">独立 Web 控制台</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <span class="ver">v0.3.0</span>
+      <span class="status"><i id="status-dot" class="dot"></i><span id="status-text">连接中</span></span>
+      <button id="btn-pause" class="btn btn-ghost btn-sm" type="button">暂停自动刷新</button>
+      <button id="btn-refresh" class="btn btn-primary" type="button">刷新</button>
+    </div>
+  </header>
+
+  <div id="core-error" class="banner banner-error hidden"></div>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <button class="tab active" data-tab="overview" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>总览
+      </button>
+      <button class="tab" data-tab="accounts" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/></svg>账号
+      </button>
+      <button class="tab" data-tab="quota" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a9 9 0 1 1 16 0"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>配额
+      </button>
+      <button class="tab" data-tab="models" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></svg>模型
+      </button>
+      <button class="tab" data-tab="enhance" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L5 13h6l-1 9 9-12h-6l1-8z"/></svg>增强
+      </button>
+      <button class="tab" data-tab="gateway" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h12"/><path d="M14 5l3 3-3 3"/><path d="M20 16H8"/><path d="M10 13l-3 3 3 3"/></svg>中转站
+      </button>
+      <button class="tab" data-tab="logs" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>日志
+      </button>
+      <button class="tab" data-tab="about" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/></svg>关于
+      </button>
+    </nav>
+
+    <main class="content">
+      <div id="data-warning" class="banner banner-warn hidden"></div>
+
+      <!-- 总览 -->
+      <section class="page active" data-page="overview">
+        <div class="page-head"><h1>总览</h1><p class="page-desc">守护进程、客户端与上游配额的实时概况</p></div>
+        <div id="ov-metrics" class="metrics"><div class="loading">正在连接守护进程…</div></div>
+        <div class="card mt">
+          <div class="card-title">当前状态</div>
+          <div id="ov-current"><div class="loading">加载中…</div></div>
+        </div>
+      </section>
+
+      <!-- 账号 -->
+      <section class="page" data-page="accounts">
+        <div class="page-head"><h1>账号</h1><p class="page-desc">多账号库与当前登录态</p></div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-adopt" type="button">纳入当前账号</button>
+          <button class="btn btn-ghost" id="btn-best" type="button">切最佳</button>
+          <button class="btn btn-ghost" id="btn-acc-refresh" type="button">刷新</button>
+          <span class="toolbar-spacer"></span>
+          <span class="muted small" id="acc-count"></span>
+        </div>
+        <div id="acc-error" class="banner banner-error hidden"></div>
+        <div id="acc-list" class="acc-grid-cards"><div class="loading">加载中…</div></div>
+      </section>
+
+      <!-- 配额 -->
+      <section class="page" data-page="quota">
+        <div class="page-head"><h1>配额</h1><p class="page-desc">按分组与窗口展示剩余额度；上游读不到时不会显示为 0%</p></div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-quota-refresh" type="button">立即刷新</button>
+          <button class="btn btn-ghost" id="btn-quota-preheat" type="button">预热</button>
+        </div>
+        <div id="quota-errors" class="banner banner-error hidden"></div>
+        <div class="quota-layout">
+          <div>
+            <div class="section-title">配额分组</div>
+            <div id="quota-groups" class="grid"><div class="loading">加载中…</div></div>
+          </div>
+          <aside>
+            <div class="card">
+              <div class="card-title">套餐信息</div>
+              <div id="quota-plan"><div class="loading">加载中…</div></div>
+            </div>
+            <div class="card mt">
+              <div class="card-title">刷新元数据</div>
+              <div id="quota-meta"><div class="loading">加载中…</div></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- 模型 -->
+      <section class="page" data-page="models">
+        <div class="page-head"><h1>模型</h1><p class="page-desc">客户端可用模型与逐模型剩余额度</p></div>
+        <div class="toolbar">
+          <input class="input" id="model-search" type="text" placeholder="搜索模型名称或 ID" style="width:260px">
+          <button class="btn btn-ghost" id="btn-model-refresh" type="button">刷新</button>
+          <span class="toolbar-spacer"></span>
+          <span class="muted small" id="model-count"></span>
+        </div>
+        <div class="card"><div id="model-list"><div class="loading">加载中…</div></div></div>
+      </section>
+
+      <!-- 增强 -->
+      <section class="page" data-page="enhance">
+        <div class="page-head"><h1>增强</h1><p class="page-desc">自动切换、上游代理与客户端连接维护</p></div>
+        <div class="enh-grid">
+          <div class="card">
+            <div class="card-title">自动切换</div>
+            <div class="field-row">
+              <label class="switch"><input type="checkbox" id="auto-enabled"><span class="slider"></span></label>
+              <span>周配额最紧张的一池低于阈值时，自动切到优先级最高的其它账号</span>
+            </div>
+            <div class="form-grid mt-sm">
+              <div class="field">
+                <label class="field-label" for="auto-threshold">触发阈值</label>
+                <select class="select" id="auto-threshold">
+                  <option value="0.2">20%</option>
+                  <option value="0.3">30%</option>
+                  <option value="0.5">50%</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="auto-interval">巡检间隔（秒）</label>
+                <input class="input" id="auto-interval" type="number" min="30" max="3600" step="10">
+              </div>
+            </div>
+            <div class="toolbar mt-sm" style="margin-bottom:0">
+              <button class="btn btn-ghost" id="btn-auto-tick" type="button">立即判定</button>
+              <span class="muted small">修改开关 / 阈值 / 间隔后自动保存</span>
+            </div>
+            <div id="auto-state" class="mt"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">上游代理</div>
+            <div id="up-enabled" class="muted small">代理开关：--</div>
+            <div class="field mt-sm">
+              <label class="field-label" for="up-proxy">代理地址 proxy</label>
+              <input class="input mono" id="up-proxy" type="text" placeholder="本地上游代理地址">
+            </div>
+            <div class="field mt-sm">
+              <label class="field-label" for="up-noproxy">直连名单 noProxy</label>
+              <input class="input mono" id="up-noproxy" type="text" placeholder="不走代理的地址，逗号分隔">
+            </div>
+            <div class="toolbar mt-sm" style="margin-bottom:0">
+              <button class="btn btn-primary" id="btn-up-save" type="button">保存代理设置</button>
+            </div>
+            <div class="hint">保存后需重启 Antigravity 客户端才会生效。代理仅影响本地上游连接，不改动官方文件。</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">连通性实测</div>
+            <div class="toolbar" style="margin-bottom:0">
+              <button class="btn btn-ghost" id="btn-netcheck" type="button">开始实测</button>
+            </div>
+            <div id="netcheck-result" class="mt-sm"><div class="muted small">尚未实测</div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">客户端连接</div>
+            <div class="toolbar" style="margin-bottom:0">
+              <button class="btn btn-ghost" id="btn-inject" type="button">重新注入面板</button>
+              <button class="btn btn-ghost" id="btn-attach" type="button">重新连接客户端</button>
+            </div>
+            <div class="hint">面板通过 CDP 注入官方窗口，页面导航后会自动重挂；客户端重启后可用此处按钮手动恢复。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 中转站（占位） -->
+      <section class="page" data-page="gateway">
+        <div class="page-head"><h1>中转站</h1><p class="page-desc">AI 中转站对接能力（占位，未接入）</p></div>
+        <div class="placeholder-box">
+          <div class="placeholder-title">AI 中转站 · 占位，尚未接入服务</div>
+          <div class="placeholder-desc">当前仅提供「连通性探测」与「对接契约」的只读能力。控制台不代发任何业务请求、不代理任何流量、不统计用量；以下开关与配置不会影响其它功能。</div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">服务探测</div>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field-label" for="gw-url">服务地址</label>
+              <input class="input mono" id="gw-url" type="text" placeholder="服务根地址，不带 /v1，不带尾斜杠">
+            </div>
+            <div class="field">
+              <label class="field-label" for="gw-key">API Key（可选，仅用于本次探测）</label>
+              <input class="input mono" id="gw-key" type="password" placeholder="留空则不携带鉴权">
+            </div>
+          </div>
+          <div class="toolbar mt-sm">
+            <button class="btn btn-primary" id="btn-gw-probe" type="button">检测连通性</button>
+            <button class="btn btn-ghost" id="btn-gw-contract" type="button">查看对接契约</button>
+          </div>
+          <div id="gw-probe-result" class="mt"><div class="muted small">尚未检测</div></div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">对接契约（只读）</div>
+          <div id="gw-boundary" class="muted small mb">当前为占位：不代发请求、不代理流量、不统计用量</div>
+          <table class="table">
+            <thead><tr><th style="width:34%">字段</th><th style="width:12%">必填</th><th>说明</th></tr></thead>
+            <tbody id="gw-fields"><tr><td colspan="3" class="muted">加载中…</td></tr></tbody>
+          </table>
+          <div class="mt-sm">
+            <div class="muted small" id="gw-protocol"></div>
+            <div class="muted small" id="gw-doc"></div>
+            <div class="small mono mt-sm" id="gw-endpoints"></div>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-title">待接入能力</div>
+          <div class="pending">
+            <div class="pending-item disabled">
+              <label class="switch"><input type="checkbox" disabled><span class="slider"></span></label>
+              <div><div class="pending-label">模型映射 <span class="tag">待接入</span></div><div class="pending-desc">官方模型 ID 与上游模型名的对应关系</div></div>
+            </div>
+            <div class="pending-item disabled">
+              <label class="switch"><input type="checkbox" disabled><span class="slider"></span></label>
+              <div><div class="pending-label">路由策略 <span class="tag">待接入</span></div><div class="pending-desc">按余量 / 轮询 / 固定选择上游池</div></div>
+            </div>
+            <div class="pending-item disabled">
+              <label class="switch"><input type="checkbox" disabled><span class="slider"></span></label>
+              <div><div class="pending-label">密钥管理 <span class="tag">待接入</span></div><div class="pending-desc">Bearer key 的本机保存与鉴权校验</div></div>
+            </div>
+            <div class="pending-item disabled">
+              <label class="switch"><input type="checkbox" disabled><span class="slider"></span></label>
+              <div><div class="pending-label">用量统计 <span class="tag">待接入</span></div><div class="pending-desc">请求量、Token 与费用统计</div></div>
+            </div>
+          </div>
+          <div class="hint mt-sm">以上开关为占位，不生效、不影响其它功能。</div>
+        </div>
+      </section>
+
+      <!-- 日志 -->
+      <section class="page" data-page="logs">
+        <div class="page-head"><h1>日志</h1><p class="page-desc">守护进程运行日志 daemon.log</p></div>
+        <div class="toolbar">
+          <select class="select" id="log-level">
+            <option value="all">全部</option>
+            <option value="error">错误</option>
+            <option value="warn">警告</option>
+            <option value="info">信息</option>
+          </select>
+          <input class="input" id="log-q" type="text" placeholder="关键词过滤" style="width:220px">
+          <select class="select" id="log-limit">
+            <option value="80">80 行</option>
+            <option value="200" selected>200 行</option>
+            <option value="500">500 行</option>
+          </select>
+          <button class="btn btn-primary" id="btn-log-refresh" type="button">刷新</button>
+          <button class="btn btn-ghost" id="btn-log-copy" type="button">复制</button>
+          <button class="btn btn-ghost" id="btn-log-folder" type="button">打开日志目录</button>
+        </div>
+        <div id="log-meta" class="muted small mb"></div>
+        <pre class="log-pre" id="log-pre">加载中…</pre>
+      </section>
+
+      <!-- 关于 -->
+      <section class="page" data-page="about">
+        <div class="page-head"><h1>关于</h1><p class="page-desc">软件信息与技术说明</p></div>
+        <div class="about-grid">
+          <div class="card">
+            <div class="about-hero">
+              <div class="about-logo">AD</div>
+              <div>
+                <div class="about-name">Antigravity Daddy</div>
+                <div class="muted small">版本 v0.3.0 · 独立 Web 控制台</div>
+              </div>
+            </div>
+            <div class="mt">
+              <div class="tech-item"><span class="tech-dot"></span><div><b>不修改官方二进制</b><div class="muted small">所有增强都在运行时生效，不触碰、不覆盖官方安装文件。</div></div></div>
+              <div class="tech-item"><span class="tech-dot"></span><div><b>CDP 注入</b><div class="muted small">通过 Chrome DevTools Protocol 向官方窗口注入面板，页面导航或客户端重启后自动重挂。</div></div></div>
+              <div class="tech-item"><span class="tech-dot"></span><div><b>本地 RPC 桥</b><div class="muted small">复用客户端自带的 LS RPC 读取配额与账号状态，不猜测云端接口、不代理业务流量。</div></div></div>
+            </div>
+            <div class="hint">本控制台与本地守护进程同源，由 127.0.0.1:8787 提供，所有数据仅在本机流转。</div>
+          </div>
+          <div class="card">
+            <div class="card-title">数据目录</div>
+            <div class="mono path-box" id="about-path">--</div>
+            <div class="toolbar mt-sm">
+              <button class="btn btn-primary" id="btn-about-folder" type="button">打开数据目录</button>
+              <button class="btn btn-ghost" id="btn-about-logs" type="button">打开日志目录</button>
+            </div>
+            <div class="section-title mt">系统信息</div>
+            <div id="about-sys"><div class="loading">加载中…</div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ---------------- 全局状态 ---------------- */
+var S = { health:null, state:null, sys:null, models:null, logs:null, contract:null };
+var ui = { tab:'overview', paused:false, coreErr:null };
+var WINDOW_LABEL = { weekly:'周额度', '5h':'5 小时窗口', '1h':'1 小时窗口', daily:'日额度' };
+
+/* ---------------- DOM 小工具（全部使用 textContent，不拼接来自接口的字符串） ---------------- */
+function $(id){ return document.getElementById(id); }
+function el(tag, cls, text){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = String(text);
+  return n;
+}
+function clear(n){ while (n.firstChild) n.removeChild(n.firstChild); return n; }
+function show(n, on){ n.classList.toggle('hidden', !on); }
+function kv(k, v){
+  var row = el('div','kv');
+  row.appendChild(el('span','kv-k', k));
+  row.appendChild(el('span','kv-v', (v === null || v === undefined) ? '--' : String(v)));
+  return row;
+}
+function badge(text, tone){ return el('span', 'badge badge-' + (tone || 'muted'), text); }
+function emptyState(title, desc){
+  var box = el('div','empty');
+  box.appendChild(el('div','empty-title', title));
+  if (desc) box.appendChild(el('div','empty-desc', desc));
+  return box;
+}
+function cell(tag, text){ return el(tag, '', text); }
+function loading(text){ return el('div','loading', text || '加载中…'); }
+
+/* ---------------- 数值格式化：null / undefined 一律显示 '--'，绝不显示 0 ---------------- */
+function pickNum(){
+  for (var i = 0; i < arguments.length; i++){
+    var v = arguments[i];
+    if (v === null || v === undefined || v === '') continue;
+    var n = Number(v);
+    if (isFinite(n)) return n;
+  }
+  return null;
+}
+function fmtPct(v){
+  var n = pickNum(v);
+  return n === null ? '--' : (n * 100).toFixed(0) + '%';
+}
+function fmtNum(v, suffix){
+  var n = pickNum(v);
+  return n === null ? '--' : String(n) + (suffix || '');
+}
+function fmtTime(ts){
+  var n = pickNum(ts);
+  if (n === null) return '--';
+  var d = new Date(n);
+  if (isNaN(d.getTime())) return '--';
+  function p(x){ return String(x).padStart(2, '0'); }
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+function fmtReset(v){
+  if (v === null || v === undefined || v === '') return '--';
+  if (typeof v === 'number' && isFinite(v)) return fmtTime(v);
+  var t = Date.parse(String(v));
+  return isNaN(t) ? String(v) : fmtTime(t);
+}
+function pctTone(v){
+  var n = pickNum(v);
+  if (n === null) return 'muted';
+  if (n >= 0.5) return 'ok';
+  if (n >= 0.2) return 'warn';
+  return 'err';
+}
+function bar(v){
+  var track = el('div','bar');
+  var n = pickNum(v);
+  if (n === null){ track.classList.add('bar-unknown'); return track; }
+  var fill = el('div','bar-fill');
+  fill.style.width = (Math.max(0, Math.min(1, n)) * 100) + '%';
+  fill.classList.add('bar-' + pctTone(n));
+  track.appendChild(fill);
+  return track;
+}
+
+/* ---------------- 网络层：所有 fetch 均 try/catch，同源相对路径 ---------------- */
+async function apiGet(path){
+  try {
+    var r = await fetch(path, { cache:'no-store' });
+    if (!r.ok) return { ok:false, data:null, err:'HTTP ' + r.status };
+    return { ok:true, data:await r.json(), err:null };
+  } catch (e) {
+    return { ok:false, data:null, err:(e && e.message) || '网络错误' };
+  }
+}
+async function apiPost(path, body){
+  try {
+    var r = await fetch(path, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(body || {}),
+      cache:'no-store'
+    });
+    if (!r.ok) return { ok:false, data:null, err:'HTTP ' + r.status };
+    var d;
+    try { d = await r.json(); } catch (_) { d = {}; }
+    return { ok:true, data:d, err:null };
+  } catch (e) {
+    return { ok:false, data:null, err:(e && e.message) || '网络错误' };
+  }
+}
+async function copyText(text, label){
+  if (!text){ toast('没有可复制的内容', 'warn'); return; }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    toast((label || '内容') + '已复制', 'ok');
+  } catch (e) {
+    toast('复制失败：' + ((e && e.message) || '剪贴板不可用'), 'err');
+  }
+}
+
+/* ---------------- 顶部状态 / 警示条 ---------------- */
+var toastTimer = null;
+function toast(msg, type){
+  var t = $('toast');
+  t.textContent = String(msg);
+  t.className = 'toast' + (type ? ' toast-' + type : '');
+  show(t, true);
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ show(t, false); }, 3200);
+}
+function setStatus(cls, txt){
+  $('status-dot').className = 'dot dot-' + cls;
+  $('status-text').textContent = txt;
+}
+function applyStatus(){
+  var h = S.health || {};
+  var stage = h.stage || ((h.ls && h.ls.attached) ? 'ready' : 'waiting');
+  if (!h.ok){ setStatus('err', '守护断开'); return; }
+  if (stage === 'ready' && h.cdp) setStatus('ok', '已就绪');
+  else if (stage === 'login') setStatus('warn', '客户端未登录');
+  else if (stage === 'waiting') setStatus('warn', '等待连接');
+  else setStatus('warn', '连接中');
+}
+function updateWarning(){
+  var h = S.health || {};
+  var q = (S.state && S.state.quota) || {};
+  var errs = Array.isArray(q.errors) ? q.errors : [];
+  var stage = h.stage || '';
+  var login = (stage === 'login');
+  var need = !!ui.coreErr || login || errs.length > 0;
+  var box = $('data-warning');
+  if (!need){ show(box, false); return; }
+  var reasons = [];
+  if (ui.coreErr) reasons.push('守护进程未响应');
+  if (login) reasons.push('客户端未登录');
+  if (errs.length) reasons.push('上游返回错误');
+  clear(box);
+  box.appendChild(el('div','warn-title', '上游数据不可用 · ' + reasons.join(' / ')));
+  box.appendChild(el('div','warn-detail', '下方数据可能为空或缓存，不代表真实余量为 0。请登录后重试，或到配额页查看错误详情。'));
+  if (errs.length){
+    var list = [];
+    for (var i = 0; i < errs.length && i < 3; i++) list.push(String(errs[i]));
+    box.appendChild(el('div','warn-errs', '错误：' + list.join('；')));
+  }
+  show(box, true);
+}
+
+/* ---------------- 核心数据（health + state） ---------------- */
+async function loadCore(){
+  var both = await Promise.all([ apiGet('/api/health'), apiGet('/api/state') ]);
+  var h = both[0], s = both[1];
+  if (!h.ok && !s.ok){
+    ui.coreErr = '无法连接本地守护进程（127.0.0.1:8787）。请确认 Antigravity Daddy 已启动，然后点右上角「刷新」重试。';
+    $('core-error').textContent = '守护进程未响应 · ' + ui.coreErr;
+    show($('core-error'), true);
+    setStatus('err', '守护断开');
+    S.health = null; S.state = null;
+    updateWarning();
+    return false;
+  }
+  ui.coreErr = null;
+  show($('core-error'), false);
+  S.health = h.data || S.health;
+  S.state = s.data || S.state;
+  applyStatus();
+  updateWarning();
+  return true;
+}
+function upstreamLabel(){
+  var h = S.health || {};
+  var cfg = (S.state && S.state.config) || {};
+  var up = cfg.upstream || {};
+  var stage = h.stage || '';
+  if (!h.ok) return { text:'不可用', sub:'守护进程未响应', tone:'err' };
+  if (stage === 'login') return { text:'未登录', sub:'客户端停在登录页', tone:'warn' };
+  if (stage === 'ready' && h.cdp) return { text:'已连接', sub:(up.enabled === false ? '代理已关闭（直连）' : '经本地上游代理'), tone:'ok' };
+  return { text:'等待中', sub:'尚未连接客户端', tone:'warn' };
+}
+
+/* ---------------- 页签：总览 ---------------- */
+function renderOverview(){
+  var st = S.state || {};
+  var h = S.health || {};
+  var accs = Array.isArray(st.accounts) ? st.accounts : [];
+  var usable = accs.filter(function(a){ return !a.disabled; }).length;
+  var q = st.quota || {};
+  var groups = Array.isArray(q.groups) ? q.groups : [];
+  var weeklies = [];
+  groups.forEach(function(g){
+    (Array.isArray(g.buckets) ? g.buckets : []).forEach(function(b){
+      var isWeekly = (b.window === 'weekly') || /周/.test(String(b.windowZh || ''));
+      if (isWeekly){
+        var v = pickNum(b.remaining, b.remainingFraction);
+        if (v !== null) weeklies.push(v);
+      }
+    });
+  });
+  var lowest = weeklies.length ? Math.min.apply(null, weeklies) : null;
+  var ver = (h.ls && h.ls.version) || (S.sys && S.sys.agyVersion) || null;
+  var up = upstreamLabel();
+  var cards = [
+    { label:'可用账号', value: accs.length ? (usable + ' / ' + accs.length) : '--', sub:'未禁用 / 账号总数', tone: accs.length ? 'ok' : 'muted' },
+    { label:'周配额最低池', value: fmtPct(lowest), sub: lowest === null ? '暂无上游数据' : '所有周窗口中最低', tone: pctTone(lowest) },
+    { label:'客户端版本', value: ver || '--', sub:'Antigravity 客户端', tone: ver ? 'ok' : 'muted' },
+    { label:'上游状态', value: up.text, sub: up.sub, tone: up.tone }
+  ];
+  var wrap = clear($('ov-metrics'));
+  cards.forEach(function(c){
+    var card = el('div','metric');
+    card.appendChild(el('div','metric-label', c.label));
+    var v = el('div','metric-value', c.value);
+    v.classList.add('tone-' + c.tone);
+    card.appendChild(v);
+    card.appendChild(el('div','metric-sub', c.sub));
+    wrap.appendChild(card);
+  });
+
+  var cur = accs.filter(function(a){ return a.isCurrent; })[0] || null;
+  var meta = st.quotaMeta || {};
+  var lastAt = meta.lastRefreshAt || (st.quota && st.quota.fetchedAt) || null;
+  var info = clear($('ov-current'));
+  info.appendChild(kv('当前账号', cur ? (cur.email || cur.label || '--') : '--'));
+  info.appendChild(kv('当前标记', cur ? (cur.isCurrent ? '已登录态在账号库中' : '--') : '账号库中未匹配到当前登录态'));
+  info.appendChild(kv('最近一次刷新', fmtTime(lastAt)));
+  info.appendChild(kv('刷新耗时', meta.lastDurationMs === null || meta.lastDurationMs === undefined ? '--' : fmtNum(meta.lastDurationMs, ' ms')));
+  info.appendChild(kv('下次刷新', fmtTime(meta.nextAt)));
+  info.appendChild(kv('守护进程', h.ok ? '在线' : '离线'));
+}
+
+/* ---------------- 页签：账号 ---------------- */
+function renderAccounts(){
+  var st = S.state || {};
+  var accs = Array.isArray(st.accounts) ? st.accounts : [];
+  show($('acc-error'), !!st.accountsError);
+  if (st.accountsError) $('acc-error').textContent = '账号库读取失败：' + st.accountsError;
+  $('acc-count').textContent = accs.length ? (accs.length + ' 个账号') : '';
+  var plan = (st.quota && st.quota.plan) || null;
+  var planName = plan ? (plan.planName || plan.name || plan.tier || null) : null;
+  var list = clear($('acc-list'));
+  if (!accs.length){
+    list.appendChild(emptyState('账号库为空', '点击「纳入当前账号」把当前登录态加入账号库；也可从官方窗口内的面板添加。'));
+    return;
+  }
+  accs.forEach(function(a){
+    var card = el('div','acc-card');
+    var head = el('div','acc-head');
+    head.appendChild(el('div','acc-email', a.email || a.label || '未命名账号'));
+    if (a.isCurrent) head.appendChild(badge('当前', 'ok'));
+    if (a.disabled) head.appendChild(badge('已禁用', 'err'));
+    card.appendChild(head);
+    if (a.label && a.label !== a.email) card.appendChild(el('div','acc-label', a.label));
+    var pr = a.priority || {};
+    var grid = el('div','acc-grid');
+    grid.appendChild(kv('优先级', fmtNum(pr.gemini) + ' / ' + fmtNum(pr.claude) + '  (Gemini / Claude)'));
+    grid.appendChild(kv('套餐', a.planName || planName || '--'));
+    grid.appendChild(kv('禁用模型', Array.isArray(a.forbiddenModels) ? a.forbiddenModels.length + ' 项' : '--'));
+    grid.appendChild(kv('蹬额度模型', Array.isArray(a.pedalModels) ? a.pedalModels.length + ' 项' : '--'));
+    grid.appendChild(kv('状态', a.disabled ? '手动禁用' : '可用'));
+    card.appendChild(grid);
+    list.appendChild(card);
+  });
+}
+
+/* ---------------- 页签：配额 ---------------- */
+function renderQuota(){
+  var st = S.state || {};
+  var q = st.quota || {};
+  var errs = Array.isArray(q.errors) ? q.errors : [];
+  var ebox = clear($('quota-errors'));
+  show(ebox, errs.length > 0);
+  if (errs.length){
+    ebox.appendChild(el('div','box-title', '上游返回错误（下方数据可能不完整或为缓存，不代表余量为 0）'));
+    errs.forEach(function(x){ ebox.appendChild(el('div','err-line', '· ' + String(x))); });
+  }
+
+  var pbox = clear($('quota-plan'));
+  var plan = q.plan || null;
+  if (plan){
+    pbox.appendChild(kv('套餐', plan.planName || plan.name || plan.tier || '--'));
+    pbox.appendChild(kv('用户', plan.email || plan.name || '--'));
+    pbox.appendChild(kv('可购买额度', plan.canBuyCredits === true ? '是' : (plan.canBuyCredits === false ? '否' : '--')));
+    var pc = plan.promptCredits || {};
+    pbox.appendChild(kv('Prompt 额度', fmtNum(pc.available) + ' / ' + fmtNum(pc.monthly)));
+  } else {
+    pbox.appendChild(el('div','muted small', '暂无套餐信息（可能未登录或上游不可用）'));
+  }
+
+  var m = st.quotaMeta || {};
+  var mbox = clear($('quota-meta'));
+  mbox.appendChild(kv('最近刷新', fmtTime(m.lastRefreshAt)));
+  mbox.appendChild(kv('本次耗时', m.lastDurationMs === null || m.lastDurationMs === undefined ? '--' : fmtNum(m.lastDurationMs, ' ms')));
+  mbox.appendChild(kv('累计刷新', fmtNum(m.refreshes) + ' 次'));
+  mbox.appendChild(kv('下次刷新', fmtTime(m.nextAt)));
+  mbox.appendChild(kv('最近错误', m.lastError ? String(m.lastError) : '无'));
+
+  var gbox = clear($('quota-groups'));
+  var groups = Array.isArray(q.groups) ? q.groups : [];
+  if (!groups.length){
+    gbox.appendChild(emptyState('暂无配额数据', '上游未返回配额分组；若为未登录状态，此处不会把读不到显示成 0%。'));
+    return;
+  }
+  groups.forEach(function(g){
+    var card = el('div','card');
+    card.appendChild(el('div','card-title', g.nameZh || g.name || g.label || '分组'));
+    if (g.description) card.appendChild(el('div','muted small', g.description));
+    var buckets = Array.isArray(g.buckets) ? g.buckets : [];
+    if (!buckets.length) card.appendChild(el('div','muted small', '该分组没有配额桶数据'));
+    buckets.forEach(function(b){
+      var v = pickNum(b.remaining, b.remainingFraction);
+      var wlabel = b.windowZh || WINDOW_LABEL[b.window] || b.window || '窗口';
+      var row = el('div','bucket');
+      var top = el('div','bucket-top');
+      top.appendChild(el('span','bucket-name', wlabel + (b.window ? ' · ' + b.window : '')));
+      top.appendChild(el('span','bucket-val', fmtPct(v)));
+      row.appendChild(top);
+      row.appendChild(bar(v));
+      row.appendChild(el('div','bucket-sub', '重置：' + fmtReset(b.resetAt || b.resetTime || null)));
+      card.appendChild(row);
+    });
+    gbox.appendChild(card);
+  });
+}
+
+/* ---------------- 页签：模型 ---------------- */
+async function loadModels(){
+  var r = await apiGet('/api/models');
+  if (r.ok){
+    S.models = (r.data && Array.isArray(r.data.models)) ? r.data.models : [];
+    if (r.data && r.data.error) toast('模型接口提示：' + r.data.error, 'warn');
+  } else {
+    S.models = S.models || [];
+    toast('模型拉取失败：' + r.err, 'err');
+  }
+  renderModels();
+}
+function renderModels(){
+  var list = Array.isArray(S.models) ? S.models : [];
+  var kw = ($('model-search').value || '').trim().toLowerCase();
+  var filtered = list.filter(function(m){
+    return !kw || (String(m.label || '') + ' ' + String(m.modelId || '')).toLowerCase().indexOf(kw) !== -1;
+  });
+  $('model-count').textContent = list.length ? (filtered.length + ' / ' + list.length + ' 个模型') : '';
+  var box = clear($('model-list'));
+  if (!list.length){
+    box.appendChild(emptyState('暂无模型数据', '点击「刷新」从本地接口拉取；客户端未登录时可能为空。'));
+    return;
+  }
+  if (!filtered.length){
+    box.appendChild(emptyState('无匹配模型', '换个关键词试试。'));
+    return;
+  }
+  filtered.forEach(function(m){
+    var v = pickNum(m.remaining, m.remainingFraction);
+    var row = el('div','model-row');
+    var left = el('div','model-left');
+    left.appendChild(el('div','model-name', m.label || m.modelId || '未命名模型'));
+    left.appendChild(el('div','model-id', m.modelId || '--'));
+    row.appendChild(left);
+    var mid = el('div','model-mid');
+    mid.appendChild(bar(v));
+    mid.appendChild(el('div','model-sub', '剩余 ' + fmtPct(v) + ' · 重置 ' + fmtReset(m.resetAt || m.resetTime || null)));
+    row.appendChild(mid);
+    var right = el('div','model-right');
+    var b = el('button','btn btn-ghost btn-sm','复制模型 ID');
+    b.type = 'button';
+    b.addEventListener('click', function(){ copyText(m.modelId || '', '模型 ID'); });
+    right.appendChild(b);
+    row.appendChild(right);
+    box.appendChild(row);
+  });
+}
+
+/* ---------------- 页签：增强 ---------------- */
+function hydrateEnhance(){
+  var st = S.state || {};
+  var cfg = st.config || {};
+  var auto = st.auto || cfg.autoSwitch || {};
+  var up = cfg.upstream || {};
+  $('auto-enabled').checked = !!auto.enabled;
+  var th = auto.threshold;
+  $('auto-threshold').value = (th === 0.2 || th === 0.3 || th === 0.5) ? String(th) : '0.3';
+  $('auto-interval').value = auto.intervalSec || 120;
+  $('up-proxy').value = up.proxy || '';
+  $('up-noproxy').value = up.noProxy || '';
+}
+function renderEnhance(){
+  var st = S.state || {};
+  var cfg = st.config || {};
+  var auto = st.auto || cfg.autoSwitch || {};
+  var up = cfg.upstream || {};
+  var box = clear($('auto-state'));
+  box.appendChild(kv('当前状态', auto.enabled ? '已启用' : '已停用'));
+  box.appendChild(kv('最近判定', auto.lastAction || '--'));
+  box.appendChild(kv('最近巡检', fmtTime(auto.lastCheckAt)));
+  box.appendChild(kv('阈值', fmtPct(auto.threshold)));
+  box.appendChild(kv('巡检间隔', fmtNum(auto.intervalSec, ' 秒')));
+  box.appendChild(kv('冷却时间', fmtNum(auto.cooldownSec, ' 秒')));
+  $('up-enabled').textContent = '代理开关：' + (up.enabled === false ? '已关闭（直连）' : '已启用');
+}
+async function saveAuto(){
+  var patch = {
+    enabled: $('auto-enabled').checked,
+    threshold: Number($('auto-threshold').value) || 0.3,
+    intervalSec: Math.max(30, Math.min(3600, Number($('auto-interval').value) || 120))
+  };
+  // 契约口径走 /api/auto；守护进程 v0.3.0 的同名 GET 分支会先于 POST 命中，
+  // 因此同时用 /api/settings 浅合并写入，保证设置真实生效。
+  var rs = await Promise.all([ apiPost('/api/auto', patch), apiPost('/api/settings', { autoSwitch: patch }) ]);
+  if (rs[1].ok) toast('自动切换设置已保存', 'ok');
+  else toast('保存失败：' + (rs[1].err || rs[0].err || '未知错误'), 'err');
+  await loadCore();
+  renderEnhance();
+}
+async function saveUpstream(){
+  var patch = { proxy: $('up-proxy').value.trim(), noProxy: $('up-noproxy').value.trim() };
+  var r = await apiPost('/api/settings', { upstream: patch });
+  if (r.ok){
+    toast('上游代理已保存，需重启客户端后生效', 'ok');
+    await loadCore();
+    renderEnhance();
+  } else {
+    toast('保存失败：' + r.err, 'err');
+  }
+}
+function netLabel(x){
+  if (!x) return '--';
+  if (x.error) return '失败 · ' + x.error;
+  var s = pickNum(x.status);
+  return s === null ? '--' : ('HTTP ' + (s === 0 ? '无响应' : s));
+}
+async function netcheck(){
+  var box = clear($('netcheck-result'));
+  box.appendChild(loading('正在实测连通性…'));
+  var r = await apiPost('/api/netcheck', {});
+  clear(box);
+  if (!r.ok){ box.appendChild(el('div','err-line', '实测失败：' + r.err)); return; }
+  var d = r.data || {};
+  box.appendChild(kv('代理地址', d.proxy || '--'));
+  box.appendChild(kv('直连', netLabel(d.direct)));
+  box.appendChild(kv('经代理', netLabel(d.proxied)));
+}
+
+/* ---------------- 页签：中转站（占位，仅探测与契约） ---------------- */
+async function loadContract(){
+  var r = await apiGet('/api/gateway/contract');
+  var box = clear($('gw-fields'));
+  if (!r.ok){
+    var trE = el('tr');
+    var tdE = cell('td', '契约读取失败：' + r.err);
+    tdE.colSpan = 3;
+    tdE.className = 'muted';
+    trE.appendChild(tdE);
+    box.appendChild(trE);
+    return;
+  }
+  var d = r.data || {};
+  S.contract = d;
+  $('gw-boundary').textContent = d.boundary || '当前为占位：不代发请求、不代理流量、不统计用量';
+  $('gw-protocol').textContent = d.protocol ? ('协议约定：' + d.protocol) : '';
+  $('gw-doc').textContent = d.doc ? ('文档：' + d.doc) : '';
+  var ep = clear($('gw-endpoints'));
+  (Array.isArray(d.endpoints) ? d.endpoints : []).forEach(function(x){ ep.appendChild(el('div','', String(x))); });
+  var fields = Array.isArray(d.fields) ? d.fields : [];
+  if (!fields.length){
+    var tr0 = el('tr');
+    var td0 = cell('td','契约暂无字段');
+    td0.colSpan = 3;
+    td0.className = 'muted';
+    tr0.appendChild(td0);
+    box.appendChild(tr0);
+    return;
+  }
+  fields.forEach(function(f){
+    var tr = el('tr');
+    tr.appendChild(cell('td', f.key || '--'));
+    tr.appendChild(cell('td', f.required ? '必填' : '可选'));
+    tr.appendChild(cell('td', f.desc || '--'));
+    box.appendChild(tr);
+  });
+}
+async function gwProbe(){
+  var box = clear($('gw-probe-result'));
+  box.appendChild(loading('正在检测（仅探测连通性与契约，不代发业务请求）…'));
+  var body = { url: $('gw-url').value.trim() };
+  var k = $('gw-key').value.trim();
+  if (k) body.apiKey = k;
+  var r = await apiPost('/api/gateway/probe', body);
+  clear(box);
+  if (!r.ok){ box.appendChild(el('div','err-line', '检测失败：' + r.err)); return; }
+  var d = r.data || {};
+  var online = !!d.online;
+  var head = el('div','probe-head');
+  head.appendChild(badge(online ? '在线' : '离线', online ? 'ok' : 'err'));
+  head.appendChild(el('span','muted small', '目标 ' + (d.url || '--')));
+  box.appendChild(head);
+  box.appendChild(kv('HTTP 状态', fmtNum(d.status)));
+  box.appendChild(kv('延迟', d.latencyMs === null || d.latencyMs === undefined ? '--' : fmtNum(d.latencyMs, ' ms')));
+  if (d.error) box.appendChild(kv('错误', String(d.error)));
+  var c = d.contract || null;
+  box.appendChild(kv('OpenAI 兼容', c ? (c.openaiCompatible ? '是' : '否') : '--'));
+  box.appendChild(kv('模型数量', c ? fmtNum(c.modelCount) : '--'));
+  box.appendChild(kv('鉴权被接受', c ? (c.authAccepted === true ? '是' : (c.authAccepted === false ? '否' : '--')) : '--'));
+  if (c && Array.isArray(c.models) && c.models.length) box.appendChild(kv('模型示例', c.models.slice(0, 6).join(', ')));
+  if (d.note) box.appendChild(el('div','muted small mt-sm', String(d.note)));
+}
+
+/* ---------------- 页签：日志 ---------------- */
+async function loadLogs(){
+  var path = '/api/logs?level=' + encodeURIComponent($('log-level').value) +
+             '&limit=' + encodeURIComponent($('log-limit').value) +
+             '&q=' + encodeURIComponent($('log-q').value.trim());
+  $('log-pre').textContent = '加载中…';
+  var r = await apiGet(path);
+  if (!r.ok){
+    $('log-pre').textContent = '日志读取失败：' + r.err;
+    $('log-meta').textContent = '';
+    return;
+  }
+  var d = r.data || {};
+  S.logs = d.log || '';
+  $('log-pre').textContent = d.log || '(无匹配日志)';
+  $('log-meta').textContent = '共 ' + fmtNum(d.total) + ' 行 · 显示 ' + fmtNum(d.shown) + ' 行 · 文件 ' + (d.file || '--');
+}
+
+/* ---------------- 页签：关于 ---------------- */
+async function loadAbout(){
+  var r = await apiGet('/api/sysinfo');
+  if (r.ok) S.sys = r.data || {};
+  var sys = S.sys;
+  var st = S.state || {};
+  var dataDir = (sys && sys.dataDir) || (st.paths && st.paths.dataDir) || '--';
+  $('about-path').textContent = dataDir;
+  var box = clear($('about-sys'));
+  if (sys){
+    box.appendChild(kv('平台', sys.platform || '--'));
+    box.appendChild(kv('CPU', sys.cpu || '--'));
+    box.appendChild(kv('内存', sys.mem || '--'));
+    box.appendChild(kv('客户端版本', sys.agyVersion || '--'));
+    box.appendChild(kv('CDP 端口', fmtNum(sys.cdpPort)));
+    box.appendChild(kv('LS 端口', fmtNum(sys.lsPort)));
+    box.appendChild(kv('代理', (sys.upstream && sys.upstream.proxy) || '--'));
+  } else {
+    box.appendChild(el('div','muted small', '系统信息不可用（守护进程未响应）'));
+  }
+}
+
+/* ---------------- 通用动作 ---------------- */
+async function simplePost(path, body, okMsg){
+  var r = await apiPost(path, body || {});
+  if (!r.ok){ toast('操作失败：' + r.err, 'err'); return r; }
+  var d = r.data || {};
+  if (d.ok === false || d.error) toast('操作未完成：' + (d.error || d.reason || '请查看日志'), 'warn');
+  else if (d.skipped) toast('判定未完成：' + d.skipped, 'warn');
+  else toast(okMsg || '操作成功', 'ok');
+  await loadCore();
+  rerenderCurrent();
+  return r;
+}
+async function openFolder(which){
+  var r = await apiPost('/api/openfolder', { which: which });
+  toast(r.ok ? '已打开目录' : ('打开失败：' + r.err), r.ok ? 'ok' : 'err');
+}
+function rerenderCurrent(){
+  if (ui.tab === 'overview') renderOverview();
+  else if (ui.tab === 'accounts') renderAccounts();
+  else if (ui.tab === 'quota') renderQuota();
+  else if (ui.tab === 'models') renderModels();
+  else if (ui.tab === 'enhance') renderEnhance();
+}
+async function refreshCurrent(){
+  await loadCore();
+  switch (ui.tab){
+    case 'overview': renderOverview(); break;
+    case 'accounts': renderAccounts(); break;
+    case 'quota': renderQuota(); break;
+    case 'models': await loadModels(); break;
+    case 'enhance': renderEnhance(); break;
+    case 'gateway': await loadContract(); break;
+    case 'logs': await loadLogs(); break;
+    case 'about': await loadAbout(); break;
+  }
+}
+
+/* ---------------- 页签切换 / 自动刷新 ---------------- */
+async function loadPage(tab){
+  ui.tab = tab;
+  var pages = document.querySelectorAll('.page');
+  for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('active', pages[i].getAttribute('data-page') === tab);
+  var tabs = document.querySelectorAll('.tab');
+  for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle('active', tabs[j].getAttribute('data-tab') === tab);
+  if (!S.state || !S.health) await loadCore();
+  switch (tab){
+    case 'overview': renderOverview(); break;
+    case 'accounts': renderAccounts(); break;
+    case 'quota': renderQuota(); break;
+    case 'models': await loadModels(); break;
+    case 'enhance': hydrateEnhance(); renderEnhance(); break;
+    case 'gateway': await loadContract(); break;
+    case 'logs': await loadLogs(); break;
+    case 'about': await loadAbout(); break;
+  }
+}
+async function tick(){
+  if (ui.paused) return;
+  var ok = await loadCore();
+  if (!ok) return;
+  // 自动刷新只重渲染纯展示页，避免打断增强 / 中转站 / 日志页里正在编辑的输入
+  if (ui.tab === 'overview') renderOverview();
+  else if (ui.tab === 'accounts') renderAccounts();
+  else if (ui.tab === 'quota') renderQuota();
+}
+
+/* ---------------- 事件绑定 ---------------- */
+function bindEvents(){
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++){
+    (function(t){ t.addEventListener('click', function(){ loadPage(t.getAttribute('data-tab')); }); })(tabs[i]);
+  }
+  $('btn-refresh').addEventListener('click', async function(){ toast('正在刷新…'); await refreshCurrent(); toast('已刷新'); });
+  $('btn-pause').addEventListener('click', function(){
+    ui.paused = !ui.paused;
+    $('btn-pause').textContent = ui.paused ? '继续自动刷新' : '暂停自动刷新';
+    $('btn-pause').classList.toggle('btn-active', ui.paused);
+    toast(ui.paused ? '已暂停自动刷新' : '已恢复自动刷新（每 10 秒）');
+  });
+
+  $('btn-adopt').addEventListener('click', function(){ simplePost('/api/account/adopt', {}, '已纳入当前账号'); });
+  $('btn-best').addEventListener('click', function(){ simplePost('/api/best-switch', {}, '已切到最佳账号'); });
+  $('btn-acc-refresh').addEventListener('click', refreshCurrent);
+
+  $('btn-quota-refresh').addEventListener('click', function(){ simplePost('/api/refresh', {}, '配额已刷新'); });
+  $('btn-quota-preheat').addEventListener('click', function(){ simplePost('/api/quota/preheat', {}, '配额预热完成'); });
+
+  $('btn-model-refresh').addEventListener('click', loadModels);
+  $('model-search').addEventListener('input', renderModels);
+
+  $('auto-enabled').addEventListener('change', saveAuto);
+  $('auto-threshold').addEventListener('change', saveAuto);
+  $('auto-interval').addEventListener('change', saveAuto);
+  $('btn-auto-tick').addEventListener('click', function(){ simplePost('/api/auto/tick', {}, '已执行一次判定'); });
+  $('btn-up-save').addEventListener('click', saveUpstream);
+  $('btn-netcheck').addEventListener('click', netcheck);
+  $('btn-inject').addEventListener('click', function(){ simplePost('/api/inject', {}, '已重新注入面板'); });
+  $('btn-attach').addEventListener('click', function(){ simplePost('/api/attach', {}, '已重新连接客户端'); });
+
+  $('btn-gw-probe').addEventListener('click', gwProbe);
+  $('btn-gw-contract').addEventListener('click', loadContract);
+
+  $('btn-log-refresh').addEventListener('click', loadLogs);
+  $('btn-log-copy').addEventListener('click', function(){ copyText(S.logs || $('log-pre').textContent, '日志'); });
+  $('btn-log-folder').addEventListener('click', function(){ openFolder('logs'); });
+  $('log-level').addEventListener('change', loadLogs);
+  $('log-limit').addEventListener('change', loadLogs);
+  $('log-q').addEventListener('change', loadLogs);
+
+  $('btn-about-folder').addEventListener('click', function(){ openFolder('data'); });
+  $('btn-about-logs').addEventListener('click', function(){ openFolder('logs'); });
+}
+
+/* ---------------- 启动 ---------------- */
+async function init(){
+  bindEvents();
+  await loadCore();
+  await loadPage('overview');
+  setInterval(tick, 10000);
+}
+init();
+</script>
+</body>
+</html>

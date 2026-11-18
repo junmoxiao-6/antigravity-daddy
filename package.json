@@ -1,0 +1,31 @@
+{
+  "name": "antigravity-daddy",
+  "version": "0.3.8",
+  "private": false,
+  "license": "MIT",
+  "description": "Antigravity Daddy - 内嵌式 Antigravity 增强层：多账号、配额看板、注入式面板与输入区快捷短语",
+  "type": "commonjs",
+  "main": "src/launcher.js",
+  "engines": { "node": ">=20" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junmoxiao-6/antigravity-daddy.git"
+  },
+  "homepage": "https://github.com/junmoxiao-6/antigravity-daddy#readme",
+  "bugs": { "url": "https://github.com/junmoxiao-6/antigravity-daddy/issues" },
+  "keywords": [
+    "antigravity",
+    "cdp",
+    "account-manager",
+    "quota",
+    "windows",
+    "injection"
+  ],
+  "os": ["win32"],
+  "scripts": {
+    "start": "node src/launcher.js",
+    "daemon": "node src/daemon.js",
+    "build:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File build/build-exe.ps1",
+    "build:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File build/make-portable.ps1"
+  }
+}

@@ -1,0 +1,28 @@
+# ---- 运行时产物 / 本机环境 ----
+bin/
+node_modules/
+dist/
+*.exe
+*.log
+logs/
+
+# ---- 本地构建与逆向分析产物（不入库）----
+build/_build_log.txt
+build/__pycache__/
+__pycache__/
+_re/
+_reverse/
+
+# ---- 含本机信息 / 第三方产品分析的资料（不入库）----
+docs/shots/
+docs/逆向报告-v2.md
+docs/功能映射-v3.md
+
+# ---- 设计稿（只保留应用图标）----
+assets/*
+!assets/icon.ico
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
