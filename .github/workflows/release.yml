@@ -77,13 +77,15 @@ jobs:
           $src = "dist\Antigravity Daddy-$ver-win-x64.zip"
           if (-not (Test-Path $src)) { throw "zip not produced: $src" }
           Copy-Item $src "dist\AntigravityDaddy-$ver-win-x64.zip" -Force
+          # 单独分发的启动器用无空格文件名，避免下载时被改成 Antigravity.Daddy.exe
+          Copy-Item 'Antigravity Daddy.exe' 'dist\AntigravityDaddy.exe' -Force
 
       - name: Checksums
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $files = @("dist\AntigravityDaddy-$ver-win-x64.zip", 'Antigravity Daddy.exe')
+          $files = @("dist\AntigravityDaddy-$ver-win-x64.zip", 'dist\AntigravityDaddy.exe')
           $lines = foreach ($f in $files) {
             $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
             "$h  $(Split-Path -Leaf $f)"
@@ -100,5 +102,5 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             dist/AntigravityDaddy-*-win-x64.zip
-            Antigravity Daddy.exe
+            dist/AntigravityDaddy.exe
             dist/SHA256SUMS.txt
