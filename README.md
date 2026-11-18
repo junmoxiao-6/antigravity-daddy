@@ -85,7 +85,7 @@ Antigravity Daddy.exe        .NET Framework 一次性启动器
 
 ### 方式 A：Release 便携包（推荐）
 
-1. 到 [Releases](https://github.com/junmoxiao-6/antigravity-daddy/releases) 下载 `AntigravityDaddy-*-win-x64.zip`
+1. 到 [Releases](https://github.com/junmoxiao-6/antigravity-daddy/releases/latest) 下载 `AntigravityDaddy-*-win-x64.zip`
 2. 解压到任意目录（不要放在受保护目录）
 3. 双击 `Antigravity Daddy.exe`
 4. 等官方窗口出现（冷启动约 30–60 秒），右下角出现 **∞** 悬浮球即成功
