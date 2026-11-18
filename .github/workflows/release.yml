@@ -1,0 +1,104 @@
+name: Release
+
+# 打 tag（v*）自动构建并在 Release 上发布产物；也可手动触发重建。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要构建的 tag（例如 v0.3.8），留空则用当前 ref'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build portable package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 便携包要自带运行时，先把它放进 bin/（bin/ 不入库）
+      - name: Stage bundled Node runtime
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          Copy-Item (Get-Command node).Source bin\node.exe -Force
+          & bin\node.exe --version
+
+      - name: Syntax check (JS + Python)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $js = @('src/launcher.js','src/daemon.js','src/cdp.js','src/rpc.js','src/accounts.js',
+                  'src/quota.js','src/store.js','src/paths.js')
+          foreach ($f in $js) {
+            & node --check $f
+            if ($LASTEXITCODE -ne 0) { throw "syntax error: $f" }
+          }
+          & python -c "import py_compile,sys; py_compile.compile('src/cred.py', doraise=True); print('cred.py OK')"
+          if ($LASTEXITCODE -ne 0) { throw 'cred.py syntax error' }
+          Write-Host 'syntax OK'
+
+      - name: Compile launcher exe
+        shell: powershell
+        run: .\build\build-exe.ps1
+
+      # exe 的版本资源必须与 package.json 一致，否则产物会自我矛盾
+      - name: Verify exe version matches package.json
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $info = (Get-Item 'Antigravity Daddy.exe').VersionInfo
+          $fileVer = $info.FileVersion
+          Write-Host "package=$ver  exe=$fileVer"
+          if (-not $fileVer.StartsWith($ver)) { throw "exe version $fileVer != package $ver" }
+
+      - name: Build portable zip
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\build\make-portable.ps1
+          $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $src = "dist\Antigravity Daddy-$ver-win-x64.zip"
+          if (-not (Test-Path $src)) { throw "zip not produced: $src" }
+          Copy-Item $src "dist\AntigravityDaddy-$ver-win-x64.zip" -Force
+
+      - name: Checksums
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $files = @("dist\AntigravityDaddy-$ver-win-x64.zip", 'Antigravity Daddy.exe')
+          $lines = foreach ($f in $files) {
+            $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
+            "$h  $(Split-Path -Leaf $f)"
+          }
+          $lines | Out-File -FilePath dist\SHA256SUMS.txt -Encoding ascii
+          Get-Content dist\SHA256SUMS.txt
+
+      - name: Publish to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/AntigravityDaddy-*-win-x64.zip
+            Antigravity Daddy.exe
+            dist/SHA256SUMS.txt

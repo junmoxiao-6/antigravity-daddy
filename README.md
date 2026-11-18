@@ -10,6 +10,8 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D4)](#系统要求)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933)](#系统要求)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/junmoxiao-6/antigravity-daddy)](https://github.com/junmoxiao-6/antigravity-daddy/releases/latest)
+[![Build](https://github.com/junmoxiao-6/antigravity-daddy/actions/workflows/release.yml/badge.svg)](https://github.com/junmoxiao-6/antigravity-daddy/actions/workflows/release.yml)
 
 ---
 
@@ -137,13 +139,32 @@ Antigravity Daddy.exe --stop        :: 停止后台守护（保留官方客户�
 3. **增强** 里按需开启自动切换 / 自动续接
 4. 输入框底栏：**书签**＝暂存提示词（点击暂存、悬停看列表），**闪电**＝快捷短语
 
-## 九、构建便携包
+## 九、构建与发布
+
+### 本地构建
 
 ```powershell
+# 只编启动器 exe
+powershell -NoProfile -ExecutionPolicy Bypass -File build\build-exe.ps1
+
+# 出便携包（会先要求 exe 存在；node 取项目内 bin\ 或系统安装）
 powershell -NoProfile -ExecutionPolicy Bypass -File build\make-portable.ps1
 ```
 
-产物在 `dist\`。脚本会优先取项目内 `bin\node.exe`，其次系统 Node 安装目录，都没有则报错（便携包需要内置 Node）。
+产物在 `dist\`。打包脚本会优先取项目内 `bin\node.exe`，其次系统 Node 安装目录，都没有则报警（便携包需要内置 Node）。
+
+### 自动发布（GitHub Actions）
+
+推一个 `v*` tag 就会自动构建并把产物挂到 Release：
+
+```bash
+git tag -a v0.3.9 -m "v0.3.9"
+git push origin v0.3.9
+```
+
+CI 会依次做：语法自检 → 编译 exe → **校验 exe 版本资源与 `package.json` 一致** → 打便携包 → 生成 `SHA256SUMS.txt` → 上传 Release。
+
+> exe 的版本号来自 `build/AssemblyInfo.cs`，发版前要一起改，否则 CI 会因版本不一致直接失败。
 
 ## 十、目录结构
 

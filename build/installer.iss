@@ -1,9 +1,9 @@
-; Antigravity Daddy 安装包脚本（Inno Setup 6，可选）
+﻿; Antigravity Daddy 安装包脚本（Inno Setup 6，可选）
 ; 用法：安装 Inno Setup 后右键本文件 → Compile
 ; 说明：安装包只是把便携包放进 Program Files 并建快捷方式；不需要管理员权限时可改为 {localappdata}
 
 #define AppName "Antigravity Daddy"
-#define AppVer "0.3.4"
+#define AppVer "0.3.8"
 #define AppExe "Antigravity Daddy.exe"
 
 [Setup]
