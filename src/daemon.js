@@ -260,7 +260,7 @@ async function route(req, res) {
     return res.end(html);
   }
 
-  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.8', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
+  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.9', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
   if (p === '/api/state') return send(res, 200, await buildState());
 
   // 一次性启动器的 --stop：只停 daemon，保留官方客户端与已注入面板（面板失去 API 后自行降级）
@@ -662,6 +662,25 @@ let watchBusy = false;
 let _goneCycles = 0;   // 连续「0 个官方进程」周期数
 let _failCycles = 0;   // 连续「有进程但连不上/注入失败」周期数
 let _everAttached = false;
+let _restartTries = 0; // 未连上情况下的自愈重启次数（防止无限杀进程）
+
+// 官方客户端对父环境敏感：带 ELECTRON_RUN_AS_NODE=1 时它会以纯 Node 模式启动、
+// 不出窗口（launcher.js 已处理；自愈重启必须用同一套清洗逻辑，否则重启也白搭）。
+function clientEnv() {
+  const env = { ...process.env };
+  delete env.ELECTRON_RUN_AS_NODE;
+  delete env.NODE_OPTIONS;
+  try {
+    const cfg = store.getConfig();
+    if (cfg.upstream && cfg.upstream.enabled) {
+      env.HTTP_PROXY = cfg.upstream.proxy;
+      env.HTTPS_PROXY = cfg.upstream.proxy;
+      env.ALL_PROXY = cfg.upstream.proxy;
+      env.NO_PROXY = cfg.upstream.noProxy || '127.0.0.1,localhost,::1';
+    }
+  } catch (_) { }
+  return env;
+}
 
 function agyProcCount() {
   try {
@@ -685,7 +704,7 @@ function healRestartClient() {
       const exe = P.agyExe();
       if (!exe) { log('[watch] heal: 未找到 Antigravity.exe'); return; }
       const { spawn } = require('child_process');
-      const child = spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: false, env: clientEnv() });
       child.unref();
       log('[watch] 已重启官方客户端');
     } catch (e) { log('[watch] relaunch failed:', e.message); }
@@ -724,13 +743,23 @@ function startWatch() {
         ok = true; _everAttached = true;
       }
 
-      // 2) 进程在、但连接/注入连续失败(半死僵尸) → 杀并重启客户端（仅在本会话曾成功连接过才动手）
-      if (ok) { _failCycles = 0; }
+      // 2) 进程在、但连接/注入反复失败(半死僵尸) → 杀并重启客户端。
+      //    连上过：3 个周期(≈36s)足够判定；从未连上：要给足冷启动时间（实测 45–90 s），
+      //    否则会把正在启动的客户端误判成僵尸（旧逻辑只认 _everAttached，导致
+      //    「一开始就是半死状态」时永远不自愈 —— 用户狂点 exe 只走「聚焦窗口」）。
+      if (ok) { _failCycles = 0; _restartTries = 0; }
       else {
         _failCycles++;
-        if (_failCycles >= 3 && _everAttached) {
-          log('[watch] 客户端无响应（连续', _failCycles, '次），执行自愈重启');
+        const limit = _everAttached ? 3 : 9;
+        if (_failCycles >= limit) {
           _failCycles = 0;
+          if (!_everAttached && _restartTries >= 2) {
+            log('[watch] 客户端持续无响应（已重启 2 次仍连不上），守护退出；请手动检查客户端');
+            try { if (cdp) cdp.close(); } catch (_) { }
+            process.exit(0);
+          }
+          if (!_everAttached) _restartTries++;
+          log('[watch] 客户端无响应（连续', limit, '个周期' + (_everAttached ? '' : '，且本会话从未连上') + '），执行自愈重启');
           healRestartClient();
         }
       }

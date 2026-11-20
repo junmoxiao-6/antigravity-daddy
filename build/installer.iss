@@ -3,7 +3,7 @@
 ; 说明：安装包只是把便携包放进 Program Files 并建快捷方式；不需要管理员权限时可改为 {localappdata}
 
 #define AppName "Antigravity Daddy"
-#define AppVer "0.3.8"
+#define AppVer "0.3.9"
 #define AppExe "Antigravity Daddy.exe"
 
 [Setup]

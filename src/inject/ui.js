@@ -1,5 +1,5 @@
 // ============================================================================
-// Antigravity Daddy 注入层 v0.3.8
+// Antigravity Daddy 注入层 v0.3.9
 //  - 交互参考 WorkDaddy（可贴边悬浮球、悬停展开、接管主题）
 //  - 信息架构吸收 Antigravity Tools（总览看板 / 账号 / 配额 / 模型 / 诊断），
 //    但只服务于"把官方客户端用得更好"，不复刻它的中转站与服务端能力
@@ -7,7 +7,7 @@
 // ============================================================================
 const API = CFG.api;
 const TAG = 'agy-daddy';
-const MY_VER = '0.3.8';
+const MY_VER = '0.3.9';
 
 if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER) { window.__AGYD__.ping(); return; }
 
