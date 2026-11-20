@@ -260,7 +260,7 @@ async function route(req, res) {
     return res.end(html);
   }
 
-  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.9', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
+  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.10', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
   if (p === '/api/state') return send(res, 200, await buildState());
 
   // 一次性启动器的 --stop：只停 daemon，保留官方客户端与已注入面板（面板失去 API 后自行降级）
@@ -704,9 +704,13 @@ function healRestartClient() {
       const exe = P.agyExe();
       if (!exe) { log('[watch] heal: 未找到 Antigravity.exe'); return; }
       const { spawn } = require('child_process');
-      const child = spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: false, env: clientEnv() });
+      // 2.33.0+ 官方不再自己开调试端口，自愈重启必须和 launcher 一样显式指定，
+      // 否则重启出来的客户端没有 CDP 通道，越重启越连不上。
+      const port = Number(process.env.AGYD_CDP_PORT || 9333);
+      const child = spawn(exe, ['--remote-debugging-port=' + port],
+        { detached: true, stdio: 'ignore', windowsHide: false, env: clientEnv() });
       child.unref();
-      log('[watch] 已重启官方客户端');
+      log('[watch] 已重启官方客户端（调试端口 ' + port + '）');
     } catch (e) { log('[watch] relaunch failed:', e.message); }
   }, 2500);
 }
