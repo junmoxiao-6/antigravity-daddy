@@ -1,5 +1,5 @@
 // ============================================================================
-// Antigravity Daddy 注入层 v0.3.10
+// Antigravity Daddy 注入层 v0.3.11
 //  - 交互参考 WorkDaddy（可贴边悬浮球、悬停展开、接管主题）
 //  - 信息架构吸收 Antigravity Tools（总览看板 / 账号 / 配额 / 模型 / 诊断），
 //    但只服务于"把官方客户端用得更好"，不复刻它的中转站与服务端能力
@@ -7,7 +7,7 @@
 // ============================================================================
 const API = CFG.api;
 const TAG = 'agy-daddy';
-const MY_VER = '0.3.10';
+const MY_VER = '0.3.11';
 
 if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER) { window.__AGYD__.ping(); return; }
 
@@ -630,12 +630,17 @@ function tabAccounts(box) {
         class: 'btn' + (isCur ? '' : ' pri'), text: isCur ? '已激活' : '切换',
         onclick: async (e) => {
           if (isCur) return;
-          const b = e.currentTarget; b.textContent = '切换中…'; b.disabled = true;
+          const b = e.currentTarget; b.disabled = true; b.textContent = '切换中…';
           try {
             const r = await api('/api/switch', { id: a.id });
-            toast(r.ok ? `已切换到 ${r.after}` : '凭据已写入，客户端需重启一次生效', 4200);
-          } catch (err) { toast('切换失败: ' + err.message, 4000); }
-          await refresh(true);
+            if (r.ok) toast(`已切换到 ${r.after}`, 4200);
+            else if (r.restarting) toast(r.note || '客户端将重启以加载新账号，约 1 分钟', 6000);
+            else toast(r.note || '凭据已写入但未生效，请手动重启客户端', 5000);
+          } catch (err) {
+            // 重启会重载页面，请求被切断属预期，不必当成失败报错
+            toast('客户端重启中，页面随后会自动恢复', 5000);
+          }
+          await refresh(true).catch(() => { });
         },
       }),
       el('button', { class: 'btn danger', text: '移除', onclick: async () => { await api('/api/account/delete', { id: a.id }); await refresh(true); } }),
@@ -698,7 +703,7 @@ function tabAccounts(box) {
   }
   box.append(det);
 
-  box.append(el('div', { class: 'small', style: { marginTop: '10px' }, text: '切号 = 重写 Windows 凭据 gemini:antigravity（App / CLI / IDE 共用一条）。配额只有当前激活的账号能读，其它账号切换后才有数据。' }));
+  box.append(el('div', { class: 'small', style: { marginTop: '10px' }, text: '切号 = 重写 Windows 凭据 gemini:antigravity（App / CLI / IDE 共用一条）。客户端的语言服务会把 token 缓存在内存里，只改凭据不会生效，所以切换时客户端会自动重启一次（约 1 分钟），回来后就是新账号；配额只有当前激活的账号能读。' }));
 }
 
 async function exportAccounts() {
@@ -762,9 +767,14 @@ function pasteBox(box) {
 async function bestSwitch() {
   try {
     const r = await api('/api/best-switch', {});
-    toast(r.ok ? `已切到 ${r.after || r.current || '最佳账号'}` : (r.reason || '没有可切换的账号'), 4200);
-    await refresh(true);
-  } catch (e) { toast('失败: ' + e.message, 4000); }
+    if (r.ok) toast(`已切到 ${r.after || r.current || '最佳账号'}`, 4200);
+    else if (r.restarting) toast(r.note || '客户端将重启以加载新账号，约 1 分钟', 6000);
+    else toast(r.reason || r.note || '没有可切换的账号', 4200);
+    await refresh(true).catch(() => { });
+  } catch (e) {
+    // 重启导致页面重载时请求会被切断，属预期
+    toast('客户端重启中，页面随后会自动恢复', 5000);
+  }
 }
 
 function qgHasData() {
@@ -1767,6 +1777,11 @@ async function refresh(force) {
     state.auto = s.auto || null;
     state.config = s.config || null;
     state.drafts = s.drafts || [];
+    // 切号会重启客户端 → 页面重载，结果只能通过这里取回；同一事件只提示一次
+    if (s.switchNotice && s.switchNotice.at !== state._lastSwitchNoticeAt) {
+      state._lastSwitchNoticeAt = s.switchNotice.at;
+      toast(s.switchNotice.note, 6000);
+    }
     if (!state.accounts.length && !state._autoAdoptTried) {
       state._autoAdoptTried = true;
       await api('/api/account/adopt', {}).catch(() => { });

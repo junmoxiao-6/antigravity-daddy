@@ -212,6 +212,8 @@ async function buildState() {
       return { ...autoState, enabled: !!c.enabled, threshold: c.threshold, intervalSec: c.intervalSec, cooldownSec: c.cooldownSec };
     })(),
     drafts: store.loadDrafts().items || [],
+    switching: _switching,
+    switchNotice: (switchNotice && Date.now() - switchNotice.at < 120000) ? switchNotice : null,
     paths: { dataDir: P.DATA_DIR, agyExe: P.agyExe(), userData: P.agyUserData(), gemini: P.GEMINI_DIR },
   };
 }
@@ -260,7 +262,7 @@ async function route(req, res) {
     return res.end(html);
   }
 
-  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.10', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
+  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.11', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
   if (p === '/api/state') return send(res, 200, await buildState());
 
   // 一次性启动器的 --stop：只停 daemon，保留官方客户端与已注入面板（面板失去 API 后自行降级）
@@ -327,8 +329,13 @@ async function route(req, res) {
     const body = await readBody(req);
     try {
       const r = await accountsApi.switchAccount(body.id, body);
-      if (r.ok) await refreshQuota('after-switch');
-      return send(res, 200, r);
+      if (r.ok) { await refreshQuota('after-switch'); return send(res, 200, r); }
+      // 凭据已写入，但客户端还用着内存里的旧 token → 默认自动重启客户端（body.restart=false 可关闭）。
+      // 必须异步：重启会整页重载，同步等待必然被切断，前端只会看到网络错误。
+      if (body.restart === false) return send(res, 200, r);
+      send(res, 200, { ...r, ok: false, restarting: true, note: '客户端将重启以加载新账号，约 1 分钟' });
+      runSwitchRestart(r.target);
+      return;
     } catch (e) { return send(res, 400, { ok: false, error: e.message }); }
   }
 
@@ -617,8 +624,13 @@ async function route(req, res) {
       if (!cands.length) return send(res, 200, { ok: false, reason: '没有可切换的其它账号（先在账号页添加）' });
       const target = cands[0];
       const r = await accountsApi.switchAccount(target.id, {});
-      if (r.ok) await refreshQuota('after-switch');
-      return send(res, 200, { ...r, current: cur ? cur.email : null });
+      if (r.ok) { await refreshQuota('after-switch'); return send(res, 200, { ...r, current: cur ? cur.email : null }); }
+      send(res, 200, {
+        ...r, ok: false, restarting: true, current: cur ? cur.email : null,
+        note: '客户端将重启以加载新账号，约 1 分钟',
+      });
+      runSwitchRestart(r.target);
+      return;
     } catch (e) { return send(res, 400, { ok: false, error: e.message }); }
   }
 
@@ -663,6 +675,8 @@ let _goneCycles = 0;   // 连续「0 个官方进程」周期数
 let _failCycles = 0;   // 连续「有进程但连不上/注入失败」周期数
 let _everAttached = false;
 let _restartTries = 0; // 未连上情况下的自愈重启次数（防止无限杀进程）
+let _switching = false; // 切号进行中：巡检让路，避免和重启流程抢客户端
+let switchNotice = null; // 切号结果通知：页面重启后由注入层取走并提示一次
 
 // 官方客户端对父环境敏感：带 ELECTRON_RUN_AS_NODE=1 时它会以纯 Node 模式启动、
 // 不出窗口（launcher.js 已处理；自愈重启必须用同一套清洗逻辑，否则重启也白搭）。
@@ -715,10 +729,62 @@ function healRestartClient() {
   }, 2500);
 }
 
+// ---------------- 切号：让客户端重读凭据 ----------------
+// Antigravity 的 LS 会把 token 缓存在内存里，只重写凭据管理器不生效，
+// 表现就是「点切换后一直停在旧账号」。同类工具的做法都是重启客户端；
+// 这里做成自动的：结束 → 带调试端口重启 → 等 attach → 重新注入。
+async function restartClientForSwitch() {
+  log('[switch] 客户端仍持有旧凭据（LS 内存缓存），重启客户端使其生效');
+  healRestartClient();
+  const port = Number(process.env.AGYD_CDP_PORT || 9333);
+  const t0 = Date.now();
+  while (Date.now() - t0 < 90000) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const p = await Cdp.resolvePort(port).catch(() => null);
+    if (!p) continue;
+    try {
+      const r = await attach({ port: p });
+      if (r && r.ok) { log('[switch] 客户端已重启，注入已恢复'); return true; }
+    } catch (_) { }
+  }
+  log('[switch] 重启后仍未 attach');
+  return false;
+}
+
+async function verifySwitchEmail(email, timeoutMs) {
+  if (!email) return null;
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const cur = await rpc.getUserStatus().then((r) => r.userStatus && r.userStatus.email).catch(() => null);
+    if (cur && cur.toLowerCase() === email.toLowerCase()) return cur;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return null;
+}
+
+// 后台执行「重启客户端 → 校验账号」，结果写进 switchNotice 供重载后的页面提示一次
+async function runSwitchRestart(email) {
+  if (_switching) return;
+  _switching = true;
+  try {
+    const restarted = await restartClientForSwitch();
+    const after = restarted ? await verifySwitchEmail(email, 30000) : null;
+    switchNotice = {
+      at: Date.now(), email, ok: !!after, restarted,
+      note: after
+        ? '已切换到 ' + after + '（客户端已重启）'
+        : (restarted ? '客户端已重启，但账号校验未通过，请在账号页确认' : '凭据已写入；客户端重启失败，请手动重启一次'),
+    };
+    if (after) await refreshQuota('after-switch');
+  } catch (e) {
+    switchNotice = { at: Date.now(), email, ok: false, restarted: false, note: '切换异常: ' + e.message };
+  } finally { _switching = false; }
+}
+
 function startWatch() {
   if (watchTimer) clearInterval(watchTimer);
   watchTimer = setInterval(async () => {
-    if (watchBusy || injecting) return;
+    if (watchBusy || injecting || _switching) return; // 切号期间让路，别和重启流程抢客户端
     watchBusy = true;
     try {
       const n = agyProcCount();

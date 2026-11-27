@@ -82,7 +82,7 @@ async function waitForCdp(timeoutMs = 90000) {
 }
 
 async function main() {
-  console.log('=== Antigravity Daddy v0.3.10 ===');
+  console.log('=== Antigravity Daddy v0.3.11 ===');
   console.log('数据目录:', P.DATA_DIR);
 
   // --client-only：主窗口的「启动 / 唤醒客户端」专用，只拉起官方 exe 后立即退出，
