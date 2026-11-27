@@ -1,6 +1,6 @@
 {
   "name": "antigravity-daddy",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "private": false,
   "license": "MIT",
   "description": "Antigravity Daddy - 内嵌式 Antigravity 增强层：多账号、配额看板、注入式面板与输入区快捷短语",

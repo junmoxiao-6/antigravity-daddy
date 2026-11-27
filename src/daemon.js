@@ -262,7 +262,7 @@ async function route(req, res) {
     return res.end(html);
   }
 
-  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.11', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
+  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.12', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
   if (p === '/api/state') return send(res, 200, await buildState());
 
   // 一次性启动器的 --stop：只停 daemon，保留官方客户端与已注入面板（面板失去 API 后自行降级）
@@ -329,11 +329,16 @@ async function route(req, res) {
     const body = await readBody(req);
     try {
       const r = await accountsApi.switchAccount(body.id, body);
-      if (r.ok) { await refreshQuota('after-switch'); return send(res, 200, r); }
-      // 凭据已写入，但客户端还用着内存里的旧 token → 默认自动重启客户端（body.restart=false 可关闭）。
-      // 必须异步：重启会整页重载，同步等待必然被切断，前端只会看到网络错误。
-      if (body.restart === false) return send(res, 200, r);
-      send(res, 200, { ...r, ok: false, restarting: true, note: '客户端将重启以加载新账号，约 1 分钟' });
+      // 已经是该账号，无需重启
+      if (r.ok) return send(res, 200, { ...r, restarting: false });
+      if (body.restart === false) return send(res, 200, { ...r, restarting: false });
+      // 凭据已写入。接下来直接重启客户端让它读新 token —— 不再试探等待。
+      // 必须立即响应：重启会整页重载，同步等待必然被切断，前端只会看到网络错误；
+      // 真正结果由 runSwitchRestart 写进 switchNotice，页面回来后提示一次。
+      send(res, 200, {
+        ...r, ok: false, restarting: true,
+        note: '正在重启客户端以加载 ' + (r.target || '新账号') + '，约 1 分钟',
+      });
       runSwitchRestart(r.target);
       return;
     } catch (e) { return send(res, 400, { ok: false, error: e.message }); }
@@ -624,10 +629,11 @@ async function route(req, res) {
       if (!cands.length) return send(res, 200, { ok: false, reason: '没有可切换的其它账号（先在账号页添加）' });
       const target = cands[0];
       const r = await accountsApi.switchAccount(target.id, {});
-      if (r.ok) { await refreshQuota('after-switch'); return send(res, 200, { ...r, current: cur ? cur.email : null }); }
+      if (r.ok) return send(res, 200, { ...r, restarting: false, current: cur ? cur.email : null });
+      // 与 /api/switch 同一套：写完凭据直接重启客户端，不等 LS 自己换号
       send(res, 200, {
         ...r, ok: false, restarting: true, current: cur ? cur.email : null,
-        note: '客户端将重启以加载新账号，约 1 分钟',
+        note: '正在重启客户端以加载 ' + (r.target || '新账号') + '，约 1 分钟',
       });
       runSwitchRestart(r.target);
       return;
@@ -734,7 +740,7 @@ function healRestartClient() {
 // 表现就是「点切换后一直停在旧账号」。同类工具的做法都是重启客户端；
 // 这里做成自动的：结束 → 带调试端口重启 → 等 attach → 重新注入。
 async function restartClientForSwitch() {
-  log('[switch] 客户端仍持有旧凭据（LS 内存缓存），重启客户端使其生效');
+  log('[switch] 结束客户端 → 带调试端口重启（新凭据只在重启后生效）');
   healRestartClient();
   const port = Number(process.env.AGYD_CDP_PORT || 9333);
   const t0 = Date.now();
@@ -751,33 +757,70 @@ async function restartClientForSwitch() {
   return false;
 }
 
+// 从任意 RPC 返回里挖出邮箱：字段名/层级会随客户端版本变（2.34.0 的 GetUserStatus
+// 就不一定给 userStatus.email），所以深度搜一遍，别死扣某个路径。
+function pickEmail(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const seen = new Set();
+  const stack = [obj];
+  while (stack.length) {
+    const v = stack.pop();
+    if (!v || typeof v !== 'object' || seen.has(v)) continue;
+    seen.add(v);
+    for (const k of Object.keys(v)) {
+      const val = v[k];
+      if (typeof val === 'string') {
+        if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) return val;
+        if (/email/i.test(k) && val.includes('@')) return val;
+      } else if (val && typeof val === 'object') stack.push(val);
+    }
+  }
+  return null;
+}
+
 async function verifySwitchEmail(email, timeoutMs) {
   if (!email) return null;
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
-    const cur = await rpc.getUserStatus().then((r) => r.userStatus && r.userStatus.email).catch(() => null);
-    if (cur && cur.toLowerCase() === email.toLowerCase()) return cur;
-    await new Promise((r) => setTimeout(r, 800));
+    // LS 还没就绪时任何账号 RPC 都读不到东西，先等它起来再校验，
+    // 否则刚重启完的十几秒会被误判成「切换失败」
+    if (lsInfo && lsInfo.attached) {
+      let cur = await rpc.getUserStatus().then(pickEmail).catch(() => null);
+      if (!cur) cur = await rpc.authStatus().then(pickEmail).catch(() => null);
+      if (!cur) cur = await rpc.userInfo().then(pickEmail).catch(() => null);
+      if (cur && cur.toLowerCase() === email.toLowerCase()) return cur;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
   }
   return null;
 }
 
 // 后台执行「重启客户端 → 校验账号」，结果写进 switchNotice 供重载后的页面提示一次
 async function runSwitchRestart(email) {
-  if (_switching) return;
+  if (_switching) { log('[switch] 已有切换在进行，忽略本次'); return; }
   _switching = true;
+  log('[switch] 开始：重启客户端以加载', email || '?');
   try {
     const restarted = await restartClientForSwitch();
-    const after = restarted ? await verifySwitchEmail(email, 30000) : null;
+    // 客户端重启后 LS 还要自己加载登录态（实测 15–60s），给足 90s 再下结论
+    const after = restarted ? await verifySwitchEmail(email, 90000) : null;
+    // 重启后停在登录页 = 目标账号的凭据需要重新走一次登录（refresh_token 过期等），
+    // 这不是失败，要说清楚，别让用户以为是工具坏了
+    const needsLogin = !!(lsInfo && lsInfo.stage === 'login');
     switchNotice = {
       at: Date.now(), email, ok: !!after, restarted,
+      stage: (lsInfo && lsInfo.stage) || null,
       note: after
         ? '已切换到 ' + after + '（客户端已重启）'
-        : (restarted ? '客户端已重启，但账号校验未通过，请在账号页确认' : '凭据已写入；客户端重启失败，请手动重启一次'),
+        : (needsLogin
+          ? '客户端已重启，' + (email || '目标账号') + ' 需要重新登录一次'
+          : (restarted ? '客户端已重启，但账号校验未通过，请在账号页确认' : '凭据已写入；客户端重启失败，请手动重启一次')),
     };
+    log('[switch] 结束:', switchNotice.note);
     if (after) await refreshQuota('after-switch');
   } catch (e) {
     switchNotice = { at: Date.now(), email, ok: false, restarted: false, note: '切换异常: ' + e.message };
+    log('[switch] 异常:', e.message);
   } finally { _switching = false; }
 }
 

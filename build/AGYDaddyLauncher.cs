@@ -1,4 +1,4 @@
-﻿// Antigravity Daddy 一次性启动器 v0.3.11
+﻿// Antigravity Daddy 一次性启动器 v0.3.12
 // 形态严格对齐 WorkDaddy：无常驻窗口、无常驻托盘、跑完立即退出。
 // 自己的任务全部落到后台隐藏 node.exe（daemon）+ 官方 Antigravity 窗口内的注入层。
 //   Antigravity Daddy.exe            双击 → 拉起官方客户端 + 后台 daemon → 退出

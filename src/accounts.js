@@ -155,32 +155,39 @@ async function deleteAccount(id) {
  * 以免破坏当前会话，这是"100% 保留会话"承诺的边界）。
  */
 async function switchAccount(id, opts = {}) {
-  const timeoutMs = opts.timeoutMs || store.getConfig().switch.timeoutMs;
   const accounts = store.loadAccounts();
   const target = accounts.find(x => x.id === id);
   if (!target) throw new Error('账号不存在');
   if (target.disabled) throw new Error('该账号已被手动禁用');
 
   const before = await rpc.getUserStatus().then(r => r.userStatus && r.userStatus.email).catch(() => null);
-  const writeResult = await writeCredentialJson(target.creds);
+
+  // 「是否已经是这个账号」必须看本地凭据指纹，不能靠 LS 的 email 字段：
+  // GetUserStatus 的返回结构会随客户端版本变化（2.34.0 上读不到 email 时，
+  // 同账号也会被误判成「需要重启」，于是点一次切换就把客户端重启一遍）。
+  // 指纹来自凭据管理器里的实际内容，是确定性的。
+  let curFp = null;
+  try { curFp = refreshFingerprint((await readCredentialRaw()).json); } catch (_) { }
+  if (curFp && target.fingerprint && curFp === target.fingerprint) {
+    return {
+      ok: true, before, after: before, target: target.email, needsRestart: false,
+      note: '当前已经是该账号', mirrorNote: 'App / CLI(agy) / IDE 共用同一条 gemini:antigravity 凭据，无需分端双写',
+      backupPath: null, elapsedMs: 0,
+    };
+  }
 
   const started = Date.now();
-  let after = before;
-  let switched = false;
-  while (Date.now() - started < timeoutMs) {
-    after = await rpc.getUserStatus().then(r => r.userStatus && r.userStatus.email).catch(() => after);
-    if (after && target.email && after.toLowerCase() === target.email.toLowerCase()) { switched = true; break; }
-    await new Promise(r => setTimeout(r, 500));
-  }
+  const writeResult = await writeCredentialJson(target.creds);
+  target.lastSwitchedAt = Date.now();
+  store.saveAccounts(accounts);
 
-  if (switched) {
-    target.lastSwitchedAt = Date.now();
-    store.saveAccounts(accounts);
-  }
+  // 不再轮询等 LS 换号：语言服务把 token 缓存在内存里，只改凭据管理器它不会重读
+  // （实测 GetUserStatus 一直返回旧邮箱）。等下去只是让人看着转圈。
+  // 直接把「需要重启」交给上层 —— 客户端重启后才会读到新凭据。
   return {
-    ok: switched,
-    before, after, target: target.email,
-    needsRestart: !switched,
+    ok: false,
+    before, after: before, target: target.email,
+    needsRestart: true,
     mirrorNote: 'App / CLI(agy) / IDE 共用同一条 gemini:antigravity 凭据，无需分端双写',
     backupPath: writeResult.backupPath || null,
     elapsedMs: Date.now() - started,

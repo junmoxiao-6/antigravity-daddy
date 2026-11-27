@@ -1,5 +1,5 @@
 // ============================================================================
-// Antigravity Daddy 注入层 v0.3.11
+// Antigravity Daddy 注入层 v0.3.12
 //  - 交互参考 WorkDaddy（可贴边悬浮球、悬停展开、接管主题）
 //  - 信息架构吸收 Antigravity Tools（总览看板 / 账号 / 配额 / 模型 / 诊断），
 //    但只服务于"把官方客户端用得更好"，不复刻它的中转站与服务端能力
@@ -7,7 +7,7 @@
 // ============================================================================
 const API = CFG.api;
 const TAG = 'agy-daddy';
-const MY_VER = '0.3.11';
+const MY_VER = '0.3.12';
 
 if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER) { window.__AGYD__.ping(); return; }
 
@@ -630,12 +630,18 @@ function tabAccounts(box) {
         class: 'btn' + (isCur ? '' : ' pri'), text: isCur ? '已激活' : '切换',
         onclick: async (e) => {
           if (isCur) return;
-          const b = e.currentTarget; b.disabled = true; b.textContent = '切换中…';
+          const b = e.currentTarget; b.disabled = true; b.textContent = '重启中…';
           try {
             const r = await api('/api/switch', { id: a.id });
-            if (r.ok) toast(`已切换到 ${r.after}`, 4200);
-            else if (r.restarting) toast(r.note || '客户端将重启以加载新账号，约 1 分钟', 6000);
-            else toast(r.note || '凭据已写入但未生效，请手动重启客户端', 5000);
+            if (r.ok) {
+              toast(r.note || `当前已经是 ${r.after}`, 4200);
+              b.disabled = false; b.textContent = '切换';
+            } else if (r.restarting) {
+              toast(r.note || '正在重启客户端以加载新账号，约 1 分钟', 7000);
+            } else {
+              toast(r.note || '凭据已写入但未生效，请手动重启客户端', 5000);
+              b.disabled = false; b.textContent = '切换';
+            }
           } catch (err) {
             // 重启会重载页面，请求被切断属预期，不必当成失败报错
             toast('客户端重启中，页面随后会自动恢复', 5000);
@@ -768,7 +774,7 @@ async function bestSwitch() {
   try {
     const r = await api('/api/best-switch', {});
     if (r.ok) toast(`已切到 ${r.after || r.current || '最佳账号'}`, 4200);
-    else if (r.restarting) toast(r.note || '客户端将重启以加载新账号，约 1 分钟', 6000);
+    else if (r.restarting) toast(r.note || '正在重启客户端以加载新账号，约 1 分钟', 7000);
     else toast(r.reason || r.note || '没有可切换的账号', 4200);
     await refresh(true).catch(() => { });
   } catch (e) {
