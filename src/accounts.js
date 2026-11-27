@@ -104,9 +104,33 @@ function normalizeAccount(json, extra = {}) {
   };
 }
 
+function credHealth(creds) {
+  const t = (creds && creds.token) || {};
+  const hasRefresh = !!t.refresh_token;
+  const expRaw = t.expiry || t.expires_at || null;
+  let expAt = null;
+  if (expRaw) {
+    const n = typeof expRaw === 'number' ? expRaw : Date.parse(expRaw);
+    if (n && !Number.isNaN(n)) expAt = n < 1e12 ? n * 1000 : n; // 秒 → 毫秒
+  }
+  return {
+    hasRefresh,
+    expiryAt: expAt,
+    // access_token 通常 1 小时就过期，这不影响使用：有 refresh_token 客户端会自己续期。
+    // 真正决定「切过去要不要手动登录」的是 refresh_token 在不在。
+    accessTokenExpired: !!expAt && expAt < Date.now(),
+    canAutoLogin: hasRefresh,
+  };
+}
+
 function publicAccount(a, currentFp) {
   const { creds, ...rest } = a;
-  return { ...rest, isCurrent: !!currentFp && a.fingerprint === currentFp };
+  return {
+    ...rest,
+    isCurrent: !!currentFp && a.fingerprint === currentFp,
+    // 有 refresh_token → 切换后客户端能自动登录；没有 → 需要手动登一次
+    canAutoLogin: !!(creds && creds.token && creds.token.refresh_token),
+  };
 }
 
 async function listAccounts() {
@@ -189,6 +213,7 @@ async function switchAccount(id, opts = {}) {
     return {
       ok: true, before, after: before, target: target.email, needsRestart: false,
       note: '当前已经是该账号', mirrorNote: 'App / CLI(agy) / IDE 共用同一条 gemini:antigravity 凭据，无需分端双写',
+      credHealth: credHealth(target.creds),
       backupPath: null, elapsedMs: 0,
     };
   }
@@ -205,6 +230,7 @@ async function switchAccount(id, opts = {}) {
     ok: false,
     before, after: before, target: target.email,
     needsRestart: true,
+    credHealth: credHealth(target.creds),
     mirrorNote: 'App / CLI(agy) / IDE 共用同一条 gemini:antigravity 凭据，无需分端双写',
     backupPath: writeResult.backupPath || null,
     elapsedMs: Date.now() - started,

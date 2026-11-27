@@ -1,5 +1,5 @@
 // ============================================================================
-// Antigravity Daddy 注入层 v0.3.13
+// Antigravity Daddy 注入层 v0.3.14
 //  - 交互参考 WorkDaddy（可贴边悬浮球、悬停展开、接管主题）
 //  - 信息架构吸收 Antigravity Tools（总览看板 / 账号 / 配额 / 模型 / 诊断），
 //    但只服务于"把官方客户端用得更好"，不复刻它的中转站与服务端能力
@@ -7,9 +7,13 @@
 // ============================================================================
 const API = CFG.api;
 const TAG = 'agy-daddy';
-const MY_VER = '0.3.13';
+const MY_VER = '0.3.14';
 
-if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER) { window.__AGYD__.ping(); return; }
+// 已注入过就只 ping 一下。但必须同时确认 host 还挂在页面上：
+// 登录页 → 主界面这类 SPA 切换会把 DOM 整段重建，host 被清掉后如果只按
+// window.__AGYD__ 判定「已注入」，UI 会永久消失且再也不重建（登录页看起来就是「不能用」）。
+if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER
+    && document.getElementById(TAG + '-host')) { window.__AGYD__.ping(); return; }
 
 const A = {
   editor: ['[data-lexical-editor="true"][aria-label="Message input"]', '[data-lexical-editor="true"]'],
@@ -610,6 +614,21 @@ function tabAccounts(box) {
   const wk = (quotaGroups().map(g => bucket(g, 'weekly')).filter(Boolean))[0];
   const five = (quotaGroups().map(g => bucket(g, '5h')).filter(Boolean))[0];
 
+  // 登录页 / 未连上时，账号列表依然可用（本地号池 + 本地凭据），
+  // 这是从登录页「逃生」的唯一入口，必须说清楚。
+  const stage = (state.ls && state.ls.stage) || null;
+  if (stage === 'login' || stage === 'waiting') {
+    box.append(el('div', {
+      class: 'card',
+      style: { borderColor: 'rgba(240,161,60,.55)', background: 'rgba(240,161,60,.10)', marginBottom: '10px' },
+    }, [
+      el('div', { style: { fontWeight: '700', marginBottom: '4px' }, text: stage === 'login' ? '客户端停在登录页' : '等待客户端连接' }),
+      el('div', { class: 'small', text: stage === 'login'
+        ? '下面的账号来自本地号池，不受登录状态影响。直接点其它账号的「切换」即可换号（会写凭据并重启客户端，不需要先在这里登录）。配额要登录后才能读取。'
+        : '守护已就绪，正在等官方客户端开窗口；窗口出现后本面板会自动接管，期间本地账号仍可操作。' }),
+    ]));
+  }
+
   box.append(el('div', { class: 'accbar' }, [
     el('div', {}, [el('div', { class: 'lab', text: '账号数' }), el('div', { class: 'val', text: String(accs.length) })]),
     el('div', { style: { width: '1px', height: '34px', background: 'rgba(120,120,150,.22)' } }),
@@ -648,12 +667,15 @@ function tabAccounts(box) {
     if (isCur) top.append(el('div', { class: 'badge on', text: '当前使用' }));
     if (plan.planName && isCur) top.append(el('div', { class: 'badge', text: plan.planName }));
     if (a.forbiddenModels && a.forbiddenModels.length) top.append(el('div', { class: 'badge', text: '冻结 ' + a.forbiddenModels.length }));
+    // 没有 refresh_token 的账号切过去会停在登录页，提前标出来
+    if (a.canAutoLogin === false) top.append(el('div', { class: 'badge', text: '需手动登录' }));
     top.append(el('div', { class: 'ops' }, [
       el('button', {
         class: 'btn' + (isCur ? '' : ' pri'), text: isCur ? '已激活' : '切换',
         onclick: async (e) => {
           if (isCur) return;
           const b = e.currentTarget; b.disabled = true; b.textContent = '重启中…';
+          if (a.canAutoLogin === false) toast('该账号缺少 refresh_token，切换后需要手动登录一次', 5200);
           try {
             const r = await api('/api/switch', { id: a.id });
             if (r.ok) {
@@ -1777,6 +1799,19 @@ function mount() {
   guard(() => refresh(false), 60000);
   guard(() => { injectComposerBar(); syncComposerState(); markForkButtons(); }, 1500);
   guard(() => { autoContinueTick(); autoConfirmTick(); }, 3000);
+  // host 存活看护：SPA 整段重建 DOM（登录页 ↔ 主界面）会把 host 摘掉。
+  // 定时器还在、Shadow DOM 内容也还在，直接挂回去即可，不必重新 mount。
+  guard(() => {
+    if (!host.isConnected) {
+      (document.body || document.documentElement).append(host);
+      if (!document.getElementById('agyd-light-css')) {
+        const light = document.createElement('style');
+        light.id = 'agyd-light-css';
+        light.textContent = LIGHT_CSS;
+        (document.head || document.documentElement).append(light);
+      }
+    }
+  }, 2000);
   scheduleSnap();
 
   window.__AGYD__ = {
