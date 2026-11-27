@@ -1,5 +1,5 @@
 // ============================================================================
-// Antigravity Daddy 注入层 v0.3.12
+// Antigravity Daddy 注入层 v0.3.13
 //  - 交互参考 WorkDaddy（可贴边悬浮球、悬停展开、接管主题）
 //  - 信息架构吸收 Antigravity Tools（总览看板 / 账号 / 配额 / 模型 / 诊断），
 //    但只服务于"把官方客户端用得更好"，不复刻它的中转站与服务端能力
@@ -7,7 +7,7 @@
 // ============================================================================
 const API = CFG.api;
 const TAG = 'agy-daddy';
-const MY_VER = '0.3.12';
+const MY_VER = '0.3.13';
 
 if (window.__AGYD__ && window.__AGYD__.mounted && window.__AGYD__.version === MY_VER) { window.__AGYD__.ping(); return; }
 
@@ -397,7 +397,7 @@ function renderPanel() {
       el('div', { class: 'brand', html: LOGO + '<span>Antigravity Daddy</span><span class="ver">v0.3</span>' }),
       el('div', { class: 'sp' }),
       el('button', { class: 'iconbtn', text: '☰', title: '菜单显示', onclick: () => { state.tab = 'menus'; drawTabs(); } }),
-      el('button', { class: 'iconbtn', text: '↻', title: '刷新', onclick: () => refresh(true) }),
+      el('button', { class: 'iconbtn', text: '↻', title: '刷新配额（向上游重新拉取）', onclick: (e) => refreshQuotaNow(e.currentTarget) }),
       el('button', { class: 'iconbtn', text: '✕', title: '收起', onclick: () => togglePanel(false) }),
     ]),
     ui.tabBar, ui.body,
@@ -462,6 +462,29 @@ function tabMenus(box) {
 }
 
 // ---------- 总览 ----------
+// 真正的「刷新」：向上游重新拉配额（POST /api/refresh），而不是只重读本地 state。
+// 之前所有刷新按钮都只调 refresh(true)，配额一直停在缓存里，看起来就是「点了没反应」。
+async function refreshQuotaNow(btn) {
+  const label = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const r = await api('/api/refresh', {});
+    await refresh(true);
+    if (r && r.ok) {
+      const ms = r.meta && r.meta.lastDurationMs != null ? `（${r.meta.lastDurationMs}ms）` : '';
+      const err = r.meta && r.meta.lastError;
+      toast(err ? `已刷新 · 上游提示：${String(err).slice(0, 60)}` : `配额已刷新${ms}`, 3600);
+    } else {
+      toast('刷新失败: ' + ((r && r.error) || '上游无响应'), 4200);
+    }
+  } catch (e) {
+    // /api/refresh 在快照失败时返回 500，api() 会抛错，这里统一收口
+    toast('刷新失败: ' + e.message, 4200);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
 function quotaGroups() { return (state.quota && state.quota.groups) || []; }
 function groupOf(name) { return quotaGroups().find(g => (g.name || '').includes(name)); }
 function bucket(g, win) { return g && (g.buckets || []).find(b => b.window === win); }
@@ -596,7 +619,7 @@ function tabAccounts(box) {
       el('div', { class: 'val', style: { fontSize: '12px', fontWeight: '600' },
         text: (state.quotaMeta && state.quotaMeta.lastRefreshAt) ? (Math.max(0, Math.round((Date.now() - state.quotaMeta.lastRefreshAt) / 1000)) < 2 ? '刚刚' : Math.round((Date.now() - state.quotaMeta.lastRefreshAt) / 1000) + ' 秒前') : '--' })]),
     el('div', { class: 'sp' }),
-    el('button', { class: 'iconbtn', title: '刷新配额', text: '↻', onclick: async () => { await refresh(true); toast('已刷新'); } }),
+    el('button', { class: 'iconbtn', title: '刷新配额（向上游重新拉取）', text: '↻', onclick: (e) => refreshQuotaNow(e.currentTarget) }),
     el('button', { class: 'iconbtn', title: '立即预热', text: '⚡', onclick: async () => {
       const r = await api('/api/quota/preheat', {}).catch(e => ({ error: e.message }));
       toast(r.error ? '预热失败: ' + r.error : `已预热 ${r.meta ? r.meta.lastDurationMs : '?'}ms`, 3600);

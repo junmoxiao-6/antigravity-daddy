@@ -35,7 +35,7 @@ function call(method, body = {}, timeoutMs = 15000) {
         'Content-Length': Buffer.byteLength(payload),
         'Connect-Protocol-Version': '1',
         'x-codeium-csrf-token': endpoint.csrf,
-        'User-Agent': 'AntigravityDaddy/0.3.12',
+        'User-Agent': 'AntigravityDaddy/0.3.13',
       },
     }, (res) => {
       const chunks = [];

@@ -262,7 +262,7 @@ async function route(req, res) {
     return res.end(html);
   }
 
-  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.12', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
+  if (p === '/api/health') return send(res, 200, { ok: true, cdp: !!cdp, ls: lsInfo, version: '0.3.13', stage: lsInfo.stage || (lsInfo.attached ? 'ready' : 'waiting'), brand: 'Antigravity Daddy' });
   if (p === '/api/state') return send(res, 200, await buildState());
 
   // 一次性启动器的 --stop：只停 daemon，保留官方客户端与已注入面板（面板失去 API 后自行降级）

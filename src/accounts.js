@@ -120,8 +120,25 @@ async function addAccount(json, extra = {}) {
   const accounts = store.loadAccounts();
   const acc = normalizeAccount(json, extra);
   if (!acc.email) throw new Error('凭据里没有可识别的邮箱，拒绝入库');
-  const dup = accounts.find(a => a.fingerprint && a.fingerprint === acc.fingerprint);
-  if (dup) { dup.label = extra.label || dup.label; store.saveAccounts(accounts); return { account: publicAccount(dup, null), duplicate: true }; }
+
+  // 去重必须按邮箱：fingerprint 由 token 内容算出，token 一刷新指纹就变，
+  // 只按指纹判重会让同一个账号反复入库（实测同一邮箱出现两条记录）。
+  const lower = acc.email.toLowerCase();
+  const dup = accounts.find(a =>
+    (a.email && a.email.toLowerCase() === lower) ||
+    (a.fingerprint && a.fingerprint === acc.fingerprint));
+
+  if (dup) {
+    // 同一账号：用新凭据覆盖（新 token 通常更新），保留已有 id / 优先级 / 备注等元数据
+    dup.email = acc.email;
+    dup.creds = acc.creds;
+    dup.fingerprint = acc.fingerprint;
+    if (!dup.addedAt) dup.addedAt = acc.addedAt;
+    if (extra.label) dup.label = extra.label;
+    store.saveAccounts(accounts);
+    return { account: publicAccount(dup, null), duplicate: true, refreshed: true };
+  }
+
   accounts.push(acc);
   store.saveAccounts(accounts);
   return { account: publicAccount(acc, null), duplicate: false };
